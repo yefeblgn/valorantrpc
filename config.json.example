@@ -1,0 +1,15 @@
+{
+    "riot_name": "", // Kullanıcı Adınız
+    "riot_tag": "", // Tagınız
+    "region": "eu",
+    "discord_client_id": "1434340968487850135", // Dokunmayınız
+    "henrik_api_key": "", // Henrik API Keyiniz
+    "update_interval": 6,
+    "use_local_assets": false,
+    "asset_cdn_url": "https://media.valorant-api.com", // Dokunmayınız
+    "show_rank": true,
+    "show_level": true,
+    "show_party_size": true,
+    "show_elapsed_time": true,
+    "debug_mode": false
+}
