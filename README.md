@@ -34,32 +34,6 @@ ValorantRPC, oyun içindeki durumunuzu arkadaşlarınıza göstermek için zengi
 - 👥 **Parti Bilgisi:** Partide kaç kişi olduğunuzu (örn: 3 kişilik bir grupta) gösterir.
 - 🕒 **Geçen Süre:** Maçın ne kadar süredir devam ettiğini gösterir.
 - 🔄 **Otomatik Güncelleme:** Oyun içi durumunuz değiştikçe Discord profiliniz anında güncellenir.
-- 🟢 **Kolay Kullanım:** `run.bat` ile tek tıkla çalıştırın ve keyfini çıkarın.
-
-## 🛠️ Kurulum ve Kullanım
-
-Başlamak için sadece birkaç basit adım yeterli:
-
-1.  **Gerekli Yazılım:**
-    * Sisteminizde [Python](https://www.python.org/downloads/) yüklü olmalıdır. Yüklü değilse en son sürümü indirip kurun.
-
-2.  **Projeyi İndirin:**
-    * Bu projenin [**Releases (Sürümler)**](https://github.com/yefeblgn/valorantrpc/releases/latest) sayfasına gidin.
-    * En son sürümdeki `valorantrpc.zip` (veya benzeri) dosyasını indirin.
-
-3.  **Dosyaları Çıkarın:**
-    * İndirdiğiniz `.zip` dosyasını boş bir klasöre çıkarın (örn: `Masaüstü/ValorantRPC`).
-
-4.  **Bağımlılıkları Yükleyin:**
-    * Klasör içindeki `install.bat` dosyasına **çift tıklayarak** çalıştırın.
-    * Bu betik, gerekli Python kütüphanelerini (`pypresence`, `requests` vb.) sizin için otomatik olarak yükleyecektir.
-
-5.  **Programı Başlatın:**
-    * Her şey hazır! `run.bat` dosyasına çift tıklayarak programı başlatın.
-    * Program arka planda çalışmaya başlayacaktır.
-
-6.  **Keyfini Çıkarın!**
-    * VALORANT ve Discord istemcileriniz açık olduğu sürece, Rich Presence profilinizde görünecektir.
 
 ## 💻 Kullanılan Teknolojiler
 
@@ -68,7 +42,7 @@ Bu proje aşağıdaki teknolojiler kullanılarak geliştirilmiştir:
 * ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
 * **pypresence:** Discord Rich Presence entegrasyonu için.
 * **requests:** VALORANT yerel API'sinden veri çekmek için.
-* **watchdog:** Oyun durumu değişikliklerini anlık izlemek için.
+* **henrikapi:** Oyun durumu değişikliklerini anlık izlemek için.
 
 ## 🤝 Katkıda Bulunma
 
