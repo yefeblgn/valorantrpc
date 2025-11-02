@@ -7,6 +7,8 @@ import logging
 from typing import Optional, Dict, Any
 import base64
 import json
+import requests
+import time
 
 try:
     from valclient.client import Client
@@ -17,11 +19,14 @@ except ImportError:
 class ValorantClientV2:
     """Valorant lokal client - Tam entegrasyon"""
     
-    def __init__(self, region='eu'):
+    def __init__(self, region='eu', henrik_api_key=None):
         self.logger = logging.getLogger(__name__)
         self.client: Optional[Client] = None
         self.connected = False
         self.region = region
+        self.henrik_api_key = henrik_api_key
+        self.last_henrik_fetch = 0
+        self.henrik_cache = {}
         self.cache = {
             'player_name': None,
             'player_tag': None,
@@ -104,6 +109,9 @@ class ValorantClientV2:
                 return None
             
             self.logger.debug(f"Presence alındı: {type(presence)}")
+            
+            # DEBUG: Presence'ın TÜM key'lerini logla
+
             
             # Parse et
             parsed = self._parse_presence(presence)
@@ -193,6 +201,86 @@ class ValorantClientV2:
             self.cache['rank_text'] = ''
             self.cache['rank_icon'] = None
     
+    def _fetch_live_match_scores(self, match_id: str) -> Optional[tuple]:
+        """Henrik API'den match ID ile aktif maçın skorlarını al"""
+        # Rate limiting - 3 saniyede bir fetch
+        now = time.time()
+        if now - self.last_henrik_fetch < 3:
+            cached = self.henrik_cache.get('scores')
+            if cached:
+                return cached
+        
+        try:
+            # Henrik API - Match details endpoint
+            # /valorant/v2/match/{matchid}
+            api_url = f"https://api.henrikdev.xyz/valorant/v2/match/{match_id}"
+            headers = {}
+            if self.henrik_api_key:
+                headers['Authorization'] = self.henrik_api_key
+            
+            response = requests.get(api_url, headers=headers, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Response formatı: {"data": {"teams": {"red": {...}, "blue": {...}}}}
+                match_data = data.get('data', {})
+                if not match_data:
+                    self.logger.debug("Henrik API: Match data yok")
+                    return None
+                
+                teams_data = match_data.get('teams', {})
+                if not teams_data:
+                    self.logger.debug("Henrik API: Teams data yok")
+                    return None
+                
+                # Blue ve Red team skorlarını al
+                blue_team = teams_data.get('blue', {})
+                red_team = teams_data.get('red', {})
+                
+                blue_score = blue_team.get('rounds_won', 0) or blue_team.get('rounds', {}).get('won', 0)
+                red_score = red_team.get('rounds_won', 0) or red_team.get('rounds', {}).get('won', 0)
+                
+                # Kendi takımımızı bul - players içinde PUUID kontrolü
+                puuid = getattr(self.client, 'puuid', None)
+                if not puuid:
+                    # PUUID yoksa ilk takımı ally kabul et
+                    ally_score = blue_score
+                    enemy_score = red_score
+                else:
+                    # PUUID'ye göre takım belirle
+                    blue_players = blue_team.get('players', [])
+                    red_players = red_team.get('players', [])
+                    
+                    is_blue = any(p.get('puuid') == puuid for p in blue_players)
+                    
+                    if is_blue:
+                        ally_score = blue_score
+                        enemy_score = red_score
+                    else:
+                        ally_score = red_score
+                        enemy_score = blue_score
+                
+                self.last_henrik_fetch = now
+                self.henrik_cache['scores'] = (ally_score, enemy_score)
+                
+                self.logger.info(f"✅ Henrik API - Skorlar alındı: {ally_score}-{enemy_score}")
+                return (ally_score, enemy_score)
+            
+            elif response.status_code == 404:
+                self.logger.debug("Henrik API: Aktif maç bulunamadı (404)")
+                return None
+            else:
+                self.logger.debug(f"Henrik API: HTTP {response.status_code}")
+                return None
+                
+        except requests.exceptions.Timeout:
+            self.logger.info("❌ Henrik API: Timeout (5s)")
+            return None
+        except Exception as e:
+            self.logger.info(f"❌ Henrik API live match fetch hatası: {type(e).__name__}: {e}")
+            return None
+    
     def _parse_presence(self, presence: Dict) -> Dict[str, Any]:
         """Presence verisini detaylı parse et - Yeni Valclient API formatı"""
         try:
@@ -226,6 +314,7 @@ class ValorantClientV2:
             # Match presence data (maç içi bilgiler)
             match_data = presence.get('matchPresenceData', {})
             if match_data and isinstance(match_data, dict):
+                
                 parsed['match_map'] = match_data.get('matchMap', '')
                 parsed['game_mode'] = match_data.get('queueId', '')
                 parsed['agent_id'] = match_data.get('characterId', '')
@@ -280,37 +369,52 @@ class ValorantClientV2:
                     
                     # Round bilgisi (score) - Deathmatch ise farklı skor
                     queue_lower = parsed.get('game_mode', '').lower()
-                    if 'deathmatch' in queue_lower:
-                        # Deathmatch: Coregame'den skorları al
-                        try:
-                            coregame_match = self.client.coregame_fetch_match()
-                            if coregame_match and 'Players' in coregame_match:
-                                puuid = self.client.puuid
-                                our_score = 0
-                                top_score = 0
-                                
-                                for player in coregame_match['Players']:
-                                    score = player.get('PlayerIdentity', {}).get('AccountLevel', 0)  # Gerçek skor farklı bir yerde olabilir
-                                    # TODO: Valorant API'de deathmatch skorları hangi field'da?
-                                    # Şimdilik geçici olarak 0-0 göster
-                                    if player.get('Subject') == puuid:
-                                        our_score = score
-                                    if score > top_score:
-                                        top_score = score
-                                
-                                parsed['round_info'] = f"Skor: {top_score} - {our_score}"
-                                self.logger.info(f"🎯 Deathmatch Skor: Top {top_score} - Our {our_score}")
-                        except Exception as e:
-                            self.logger.debug(f"Deathmatch skor alınamadı: {e}")
-                            parsed['round_info'] = "Skor: 0 - 0"
-                    else:
-                        # Normal mod: takım skorları
-                        score_ally = match_data.get('partyOwnerMatchScoreAllyTeam', 0)
-                        score_enemy = match_data.get('partyOwnerMatchScoreEnemyTeam', 0)
-                        if score_ally is not None and score_enemy is not None:
-                            parsed['round_info'] = f"Skor: {score_ally} - {score_enemy}"
                     
-                    self.logger.debug(f"IN GAME - Map: {parsed['match_map']}, Mode: {parsed['game_mode']}, Agent: {parsed.get('agent_name', '')}, Score: {score_ally}-{score_enemy}")
+                    # Custom oyunlarda skorlar presence'da gelmiyor
+                    if 'custom' in queue_lower or parsed.get('provisioning_flow') == 'CustomGame':
+                        parsed['round_info'] = "Skor: Özel Oyun"
+                        self.logger.info(f"🎯 Custom game detected - score tracking unavailable")
+                    elif 'deathmatch' in queue_lower:
+                        # Deathmatch: Presence'dan skorları al (varsa), yoksa 0-0
+                        ally_dm = presence.get('partyOwnerMatchScoreAllyTeam', 0)
+                        enemy_dm = presence.get('partyOwnerMatchScoreEnemyTeam', 0)
+                        
+                        # DEBUG: Her seferinde logla ki güncellenip güncellenmediğini görelim
+                        self.logger.info(f"📊 Presence'dan okunan: Ally={ally_dm}, Enemy={enemy_dm}")
+                        
+                        if ally_dm is not None and enemy_dm is not None:
+                            # Deathmatch'de "ally" bizim kill sayımız, "enemy" top kill
+                            parsed['round_info'] = f"Skor: {enemy_dm} - {ally_dm}"
+                            self.logger.info(f"🎯 Deathmatch Skor: En İyi {enemy_dm} - Bizim {ally_dm}")
+                        else:
+                            parsed['round_info'] = "Skor: 0 - 0"
+                            self.logger.debug("Deathmatch skor presence'da yok")
+                    else:
+                        # Normal mod: takım skorları - presence objesinde!
+                        score_ally = None
+                        score_enemy = None
+
+                        # Birincil anahtarlar - PRESENCE objesinde, match_data'da değil!
+                        score_ally = presence.get('partyOwnerMatchScoreAllyTeam')
+                        score_enemy = presence.get('partyOwnerMatchScoreEnemyTeam')
+                        
+                        # DEBUG: Her seferinde logla
+                        self.logger.info(f"📊 Presence'dan okunan skorlar: Ally={score_ally}, Enemy={score_enemy}")
+                        
+                        # Skorlar presence'da olmalı, yoksa 0 kullan
+
+                        # Final fallback: 0-0
+                        try:
+                            if score_ally is None:
+                                score_ally = 0
+                            if score_enemy is None:
+                                score_enemy = 0
+                        except Exception:
+                            score_ally = 0
+                            score_enemy = 0
+
+                        parsed['round_info'] = f"Skor: {score_ally} - {score_enemy}"
+                        self.logger.info(f"🎯 Round Skor güncellendi: {score_ally} - {score_enemy}")
                 else:
                     # Map yok veya oyun başlamamış = Lobide/Custom lobby
                     parsed['session_state'] = 'menus'

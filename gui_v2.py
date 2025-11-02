@@ -93,7 +93,8 @@ class ValorantRPCGUI(ctk.CTk):
     def init_rpc_components(self):
         """RPC bileşenlerini başlat"""
         try:
-            self.client = ValorantClientV2(region=self.config.region)
+            henrik_key = getattr(self.config, 'henrik_api_key', None)
+            self.client = ValorantClientV2(region=self.config.region, henrik_api_key=henrik_key)
             self.rpc = DiscordRPC(self.config.discord_client_id)
             self.presence_builder = PresenceBuilderV2()
         except Exception as e:
