@@ -1,3 +1,7 @@
 pypresence==4.3.0
 requests==2.31.0
 valclient==1.0.3
+pyinstaller
+pystray
+customtkinter
+pillow

@@ -80,6 +80,12 @@ pip install -r requirements.txt- 🔔 **Sistem Tepsisi** - Minimize edildiğinde
 
 python gui_v2.py
 
+Build almak için 
+
+python -m PyInstaller --name=ValorantRPC --onefile --windowed --icon=assets/game_icon_white.ico --add-data="assets;assets" --hidden-import=PIL._tkinter_finder --collect-all=customtkinter --collect-all=PIL --noconfirm gui_v2.py
+
+kullanınız
+
 ``````bash
 
 
