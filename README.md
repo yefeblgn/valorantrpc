@@ -11,12 +11,6 @@
   </p>
 
   <p>
-    <a href="https://github.com/yefeblgn/valorantrpc/releases/latest">
-      <img src="https://img.shields.io/github/v/release/yefeblgn/valorantrpc?style=for-the-badge&label=Son Surum&color=5865F2" alt="Son Sürüm">
-    </a>
-    <a href="https://github.com/yefeblgn/valorantrpc/releases">
-      <img src="https://img.shields.io/github/downloads/yefeblgn/valorantrpc/total?style=for-the-badge&label=Indirmeler&color=5865F2" alt="Toplam İndirme">
-    </a>
     <a href="https://github.com/yefeblgn/valorantrpc/issues">
       <img src="https://img.shields.io/github/issues/yefeblgn/valorantrpc?style=for-the-badge&label=Hatalar&color=eb4034" alt="Issues">
     </a>
