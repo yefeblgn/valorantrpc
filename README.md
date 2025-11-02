@@ -12,7 +12,7 @@
 
   <p>
     <a href="https://github.com/yefeblgn/valorantrpc/releases/latest">
-      <img src="https://img.shields.io/github/v/release/yefeblgn/valorantrpc?style=for-the-badge&label=SonSürüm&color=5865F2" alt="Son Sürüm">
+      <img src="https://img.shields.io/github/v/release/yefeblgn/valorantrpc?style=for-the-badge&label=Son Surum&color=5865F2" alt="Son Sürüm">
     </a>
     <a href="https://github.com/yefeblgn/valorantrpc/releases">
       <img src="https://img.shields.io/github/downloads/yefeblgn/valorantrpc/total?style=for-the-badge&label=Indirmeler&color=5865F2" alt="Toplam İndirme">
@@ -27,14 +27,6 @@
 </div>
 
 ---
-
-## 🚀 Önizleme
-
-<div align="center">
-  <img src="https://i.imgur.com/83p5g1G.png" alt="ValorantRPC Önizleme" width="400">
-  <br />
-  <em>(Bu kısmı kendi ekran görüntünüz veya GIF'iniz ile değiştirmeyi unutmayın!)</em>
-</div>
 
 ## ✨ Öne Çıkan Özellikler
 
