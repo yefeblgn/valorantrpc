@@ -1,13 +1,11 @@
 <div align="center">
 
-  <h1>ValorantRPC</h1>
+  <h1>ValorantRPC 2.0</h1>
 
   <p>
-    <b>VALORANT deneyiminizi Discord'a taşıyın!</b>
+    <b>VALORANT durumunu Discord'a taşı — sıfır ayar, anahtar yok.</b>
     <br />
-    Oynadığınız ajan, harita, skor durumu, rankınız ve daha fazlasını
-    <br />
-    Discord profilinizde otomatik olarak gösterin.
+    Oynadığın ajan, harita, skor, rank ve modu Discord profilinde otomatik göster.
   </p>
 
   <p>
@@ -22,34 +20,66 @@
 
 ---
 
-## ✨ Öne Çıkan Özellikler
+## ✨ Öne Çıkanlar
 
-ValorantRPC, oyun içindeki durumunuzu arkadaşlarınıza göstermek için zengin özellikler sunar:
+- 🔑 **Anahtarsız & sıfır ayar.** HenrikDev API yok. Riot adı, tag, bölge ve dil
+  doğrudan yerel Riot client'tan **otomatik** tespit edilir. Aç ve kullan.
+- 🛰️ **Tamamen yerel.** Veri yalnızca Riot'un kendi yerel API'sinden (lockfile +
+  entitlements + PD/GLZ) okunur. Şifren veya hesabın hiçbir dış servise gönderilmez.
+- 🎯 **Gerçek zamanlı.** Menü, ajan seçimi ve maç durumu (mod · harita · ajan · skor ·
+  parti · rank/RR) anlık olarak Discord'a yansır.
+- 🖼️ **Hep güncel içerik.** Ajan/harita/rank isim ve görselleri `valorant-api.com`'dan
+  çekilir; yeni ajan/harita çıktığında elle güncelleme gerekmez.
+- 🪶 **Tray öncelikli, hafif arayüz.** Sistem tepsisinde yaşar; tek tıkla açılan
+  kompakt, koyu temalı mini panel.
+- 🌐 **TR / EN.** Arayüz ve Discord metinleri için anlık dil değişimi.
+- 🚀 **Windows ile başlat** seçeneği.
 
-- 🏆 **Rank Gösterimi:** Mevcut rankınızı (örn: Elmas 2) ve RR puanınızı gösterir.
-- 👤 **Ajan Seçimi:** O an oynadığınız ajanı (örn: Jett, Omen, Killjoy) gösterir.
-- 🗺️ **Harita Bilgisi:** Oynanan haritayı (örn: Ascent, Bind, Icebox) belirtir.
-- 📊 **Skor Durumu:** Maçtaki güncel skoru (örn: 10 - 5) anlık olarak yansıtır.
-- 🕹️ **Oyun Modu:** Hangi oyun modunda olduğunuzu gösterir (örn: Rekabete Dayalı, Tam Gaz).
-- 👥 **Parti Bilgisi:** Partide kaç kişi olduğunuzu (örn: 3 kişilik bir grupta) gösterir.
-- 🕒 **Geçen Süre:** Maçın ne kadar süredir devam ettiğini gösterir.
-- 🔄 **Otomatik Güncelleme:** Oyun içi durumunuz değiştikçe Discord profiliniz anında güncellenir.
+## 🚀 Kurulum & Çalıştırma
 
-## 💻 Kullanılan Teknolojiler
+### Hazır .exe
+[Releases](https://github.com/yefeblgn/valorantrpc/releases/latest) sayfasından
+`ValorantRPC.exe` indir ve çalıştır. Başka bir şey yapman gerekmez.
 
-Bu proje aşağıdaki teknolojiler kullanılarak geliştirilmiştir:
+### Kaynaktan
+```bash
+pip install -r requirements.txt
+python -m vrpc
+```
 
-* ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
-* **pypresence:** Discord Rich Presence entegrasyonu için.
-* **requests:** VALORANT yerel API'sinden veri çekmek için.
-* **henrikapi:** Oyun durumu değişikliklerini anlık izlemek için.
+Valorant ve Discord açıkken uygulama gerisini halleder. Pencereyi kapatmak onu tepsiye
+gizler; tamamen çıkmak için tepsi menüsünden **Çıkış**.
 
-## 🤝 Katkıda Bulunma
+### Kendi .exe'ni derle
+```bash
+python build.py    # -> dist/ValorantRPC.exe
+```
 
-Projeye katkıda bulunmak ister misiniz? Harika!
+## 🧠 Nasıl Çalışır?
 
-Bir hata bulursanız veya yeni bir özellik önermek isterseniz, lütfen bir [Issue (Sorun)](https://github.com/yefeblgn/valorantrpc/issues) açın. Pull Request (PR) göndermekten çekinmeyin.
+```
+Riot Client (lockfile) ──► yerel kimlik (entitlements, PUUID)
+        │
+        ├─ /chat/v4/presences ──► durum, mod, parti, seviye, tier, skor
+        ├─ core-game / pregame ─► oynanan ajan
+        └─ mmr (PD) ────────────► RR
+                                   │
+valorant-api.com (statik) ─► isim & görseller
+                                   │
+                                   ▼
+                          Discord Rich Presence
+```
+
+## 💻 Teknolojiler
+
+- **Python 3** · **pypresence** (Discord RPC) · **requests** (yerel API)
+- **pystray** (tepsi) · **customtkinter** + **Pillow** (mini panel)
+
+## 🤝 Katkı
+
+Hata veya öneri için bir [Issue](https://github.com/yefeblgn/valorantrpc/issues) aç,
+ya da doğrudan PR gönder.
 
 ## 📄 Lisans
 
-Bu proje [MIT Lisansı](https://github.com/yefeblgn/valorantrpc/blob/main/LICENSE) altında lisanslanmıştır.
+[MIT](https://github.com/yefeblgn/valorantrpc/blob/main/LICENSE)

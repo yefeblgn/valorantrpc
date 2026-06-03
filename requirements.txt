@@ -1,7 +1,6 @@
-pypresence==4.3.0
-requests==2.31.0
-valclient==1.0.3
-pyinstaller
-pystray
-customtkinter
-pillow
+pypresence>=4.3.0
+requests>=2.31.0
+pystray>=0.19.5
+pillow>=10.0.0
+customtkinter>=5.2.2
+pyinstaller>=6.0.0

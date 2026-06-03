@@ -97,15 +97,26 @@ def get_player_rank(player_data: Dict[str, Any]) -> Optional[str]:
 ### Dosya Yapısı
 
 ```
-valorantrpc/
-├── main.py              # Ana program
-├── config.py            # Konfigürasyon yönetimi
-├── valorant_api.py      # API client
-├── discord_rpc.py       # Discord RPC
-├── presence_builder.py  # Presence oluşturma
-├── asset_manager.py     # Asset yönetimi
-├── utils.py             # Yardımcı fonksiyonlar
-└── setup.py             # Kurulum scripti
+vrpc/
+├── __main__.py          # `python -m vrpc` giriş noktası
+├── app.py               # Orkestrasyon (poller + tray + panel)
+├── config.py            # Ayarlar + Windows autostart
+├── constants.py         # Sabitler ve yollar
+├── i18n.py              # TR/EN metin tabloları
+├── riot/                # Yerel Riot API katmanı
+│   ├── local_auth.py    # lockfile + entitlements
+│   ├── region.py        # bölge/shard/dil tespiti
+│   ├── api.py           # presence/mmr/coregame/pregame
+│   └── content.py       # valorant-api statik içerik + cache
+├── core/                # Çekirdek mantık
+│   ├── state.py         # GameState + presence çözümleme
+│   ├── presence.py      # Discord presence üretimi
+│   ├── discord_rpc.py   # pypresence sarmalayıcı
+│   └── poller.py        # arka plan poller thread
+└── ui/                  # Tray + mini panel
+    ├── tray.py
+    ├── panel.py
+    └── icons.py
 ```
 
 ### Test Etme
@@ -114,7 +125,7 @@ Değişikliklerinizi test edin:
 
 1. **Temel test**
    ```bash
-   python main.py
+   python -m vrpc
    ```
 
 2. **Farklı senaryolar**
@@ -124,23 +135,23 @@ Değişikliklerinizi test edin:
    - Farklı rank'ler
 
 3. **Hata durumları**
-   - API erişilemez
+   - Valorant kapalı / bayat lockfile
    - Discord kapalı
-   - Geçersiz config
+   - Çevrimdışı (valorant-api erişilemez)
 
 ## 🎯 Öncelikli Geliştirme Alanları
 
 ### Yüksek Öncelik
-- [ ] Live match tracking iyileştirmeleri
-- [ ] Agent gösterimi
-- [ ] Performans optimizasyonları
-- [ ] Hata yönetimi geliştirmeleri
+- [x] Henrik bağımlılığının kaldırılması (tamamen yerel API)
+- [x] Ajan / harita / skor / rank gösterimi
+- [x] Tray öncelikli mini panel
+- [ ] Performans ve dayanıklılık iyileştirmeleri
 
 ### Orta Öncelik
-- [ ] GUI eklentisi
-- [ ] Otomatik başlatma (Windows startup)
+- [x] Otomatik başlatma (Windows startup)
+- [x] TR/EN dil desteği
 - [ ] İstatistik görüntüleme
-- [ ] Multi-account desteği
+- [ ] Ek dil çevirileri
 
 ### Düşük Öncelik
 - [ ] Özel temalar
@@ -154,7 +165,7 @@ Değişikliklerinizi test edin:
 
 ## 📚 Kaynaklar
 
-- [Henrik Dev API Docs](https://docs.henrikdev.xyz/)
+- [Valorant Yerel API (community)](https://github.com/HeyM1ke/ValorantClientAPI)
 - [Discord RPC Docs](https://discord.com/developers/docs/rich-presence/overview)
 - [pypresence Documentation](https://qwertyquerty.github.io/pypresence/html/index.html)
 - [Valorant API](https://valorant-api.com/)

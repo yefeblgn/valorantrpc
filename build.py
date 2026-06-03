@@ -1,58 +1,47 @@
-"""
-Build script for Valorant RPC
-Creates standalone .exe file
-"""
+"""ValorantRPC 2.0 — tek dosya .exe üretimi (PyInstaller)."""
 
 import os
 import shutil
 import subprocess
 import sys
 
-print("🔨 Valorant RPC Build Script")
-print("=" * 50)
+print("ValorantRPC build")
+print("=" * 40)
 
-# Temizlik
-if os.path.exists("build"):
-    print("🧹 Cleaning build directory...")
-    shutil.rmtree("build")
+for d in ("build", "dist"):
+    if os.path.exists(d):
+        print(f"temizleniyor: {d}/")
+        shutil.rmtree(d)
 
-if os.path.exists("dist"):
-    print("🧹 Cleaning dist directory...")
-    shutil.rmtree("dist")
-
-# PyInstaller komutu
-print("\n📦 Building executable...")
+# Entry: küçük bir başlatıcı (python -m vrpc eşdeğeri).
+ENTRY = "run.py"
+with open(ENTRY, "w", encoding="utf-8") as f:
+    f.write("from vrpc.app import run\n\nif __name__ == '__main__':\n    run()\n")
 
 command = [
-    sys.executable,
-    "-m",
-    "PyInstaller",
+    sys.executable, "-m", "PyInstaller",
     "--name=ValorantRPC",
     "--onefile",
     "--windowed",
     "--icon=assets/game_icon_white.ico",
     "--add-data=assets;assets",
-    "--hidden-import=PIL._tkinter_finder",
     "--collect-all=customtkinter",
-    "--collect-all=PIL",
+    "--hidden-import=PIL._tkinter_finder",
     "--noconfirm",
-    "gui_v2.py"
+    ENTRY,
 ]
 
+print("\nderleniyor…")
 try:
     subprocess.run(command, check=True)
-    print("\n✅ Build successful!")
-    print(f"📁 Output: dist/ValorantRPC.exe")
+    print("\n✅ Tamam: dist/ValorantRPC.exe")
 except subprocess.CalledProcessError as e:
-    print(f"\n❌ Build failed: {e}")
+    print(f"\n❌ Derleme hatası: {e}")
     sys.exit(1)
-
-# Temizlik
-print("\n🧹 Cleaning up...")
-if os.path.exists("build"):
-    shutil.rmtree("build")
-
-if os.path.exists("ValorantRPC.spec"):
-    os.remove("ValorantRPC.spec")
-
-print("\n✨ Done! Check dist/ValorantRPC.exe")
+finally:
+    if os.path.exists(ENTRY):
+        os.remove(ENTRY)
+    if os.path.exists("build"):
+        shutil.rmtree("build")
+    if os.path.exists("ValorantRPC.spec"):
+        os.remove("ValorantRPC.spec")

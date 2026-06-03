@@ -1,0 +1,234 @@
+"""Arka plan poller: yerel API'yi yoklar, GameState üretir, Discord'u günceller.
+
+Tüm istisnalar yutulur; ardışık hatalarda backoff uygulanır — thread asla çökmez.
+UI bu sınıfın thread-safe alanlarını (snapshot) okur; ayrıca değişimde on_update çağrılır.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+
+from ..constants import DISCORD_CLIENT_ID, POLL_INTERVAL
+from ..riot.api import RiotApi
+from ..riot.content import Content
+from ..riot.local_auth import LocalAuth, RiotNotRunning
+from ..riot.region import detect_locale, detect_player, detect_region_shard
+from . import presence as presence_builder
+from .discord_rpc import DiscordRPC
+from .state import GameState, parse_presence
+
+logger = logging.getLogger(__name__)
+
+AGENT_REFRESH = 15.0   # ajan yeniden çekme aralığı (s)
+MMR_REFRESH = 300.0    # RR yeniden çekme aralığı (s)
+
+
+class Poller:
+    def __init__(self, settings, on_update=None) -> None:
+        self.settings = settings
+        self.on_update = on_update  # parametresiz callable; değişimde çağrılır
+
+        self.content = Content(settings.language)
+        self.discord = DiscordRPC(DISCORD_CLIENT_ID)
+
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+        self._lock = threading.Lock()
+
+        # --- paylaşılan snapshot (UI okur) ---
+        self.state = GameState()
+        self.valorant_connected = False
+        self.discord_connected = False
+        self.player_name = ""
+        self.player_tag = ""
+
+        # --- iç durum ---
+        self._auth: LocalAuth | None = None
+        self._api: RiotApi | None = None
+        self._region = self._shard = ""
+        self._start_ts = int(time.time())
+        self._last_signature: tuple | None = None
+        self._last_agent_fetch = 0.0
+        self._last_mmr_fetch = 0.0
+        self._error_streak = 0
+
+    # ------------------------------------------------------------------ #
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, name="vrpc-poller", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=3)
+        self.discord.close()
+
+    # ------------------------------------------------------------------ #
+    def _notify(self) -> None:
+        if self.on_update:
+            try:
+                self.on_update()
+            except Exception:
+                pass
+
+    def _set_idle(self) -> None:
+        changed = self.valorant_connected or self.state.session_state != "idle"
+        with self._lock:
+            self.valorant_connected = False
+            self.state = GameState(session_state="idle", name=self.player_name, tag=self.player_tag)
+        self._last_signature = None
+        self._auth = None
+        self._api = None
+        if self.discord_connected:
+            self.discord.clear()
+        if changed:
+            self._notify()
+
+    def _ensure_connection(self) -> bool:
+        """Riot'a bağlan/yeniden bağlan. Bağlıysa True."""
+        if self._auth and self._auth.is_valid():
+            return True
+        auth = LocalAuth()
+        auth.refresh()  # RiotNotRunning yükseltebilir
+        region, shard = detect_region_shard(auth)
+        self._auth = auth
+        self._region, self._shard = region, shard
+        self._api = RiotApi(auth, region, shard)
+
+        # İlk açılışta dili otomatik belirle (kullanıcı henüz değiştirmediyse).
+        if not self.settings.language_detected:
+            lang = detect_locale(auth)
+            self.settings.language = lang
+            self.settings.language_detected = True
+            self.settings.save()
+            self.content.set_language(lang)
+
+        name, tag = detect_player(auth)
+        with self._lock:
+            self.player_name, self.player_tag = name or self.player_name, tag or self.player_tag
+            self.valorant_connected = True
+        logger.info("Riot bağlandı: %s#%s [%s/%s]", name, tag, region, shard)
+        return True
+
+    def _run(self) -> None:
+        # Discord'a en baştan bağlanmayı dene (oyun kapalıyken bile).
+        self.discord_connected = self.discord.connect()
+
+        while not self._stop.is_set():
+            try:
+                self._tick()
+                self._error_streak = 0
+                self._stop.wait(POLL_INTERVAL)
+            except RiotNotRunning:
+                self._set_idle()
+                self._stop.wait(POLL_INTERVAL * 2)
+            except Exception as e:
+                self._error_streak += 1
+                logger.debug("Poller hatası (%d): %s", self._error_streak, e)
+                backoff = min(POLL_INTERVAL * 2 ** min(self._error_streak, 4), 30)
+                self._stop.wait(backoff)
+
+    def _tick(self) -> None:
+        # Dil ayarı değiştiyse içeriği güncelle.
+        self.content.set_language(self.settings.language)
+
+        # Discord bağlı değilse yeniden dene.
+        if not self.discord.connected:
+            self.discord_connected = self.discord.connect()
+        else:
+            self.discord_connected = True
+
+        self._ensure_connection()
+
+        private = self._api_self_presence()
+        if private is None:
+            # Presence yok ama Riot açık: menü/yükleniyor — idle'a düşürme, bekle.
+            return
+
+        state = parse_presence(private)
+        state.name = self.player_name
+        state.tag = self.player_tag
+
+        now = time.time()
+
+        # Ajan (coregame/pregame), aralıklı yenile.
+        if state.session_state in ("ingame", "pregame"):
+            reuse = (
+                self.state.agent_uuid
+                and self.state.session_state == state.session_state
+                and (now - self._last_agent_fetch) < AGENT_REFRESH
+            )
+            if reuse:
+                state.agent_uuid = self.state.agent_uuid
+            else:
+                agent = self._api.current_agent(state.session_state)
+                if agent:
+                    state.agent_uuid = agent
+                    self._last_agent_fetch = now
+                elif self.state.agent_uuid:
+                    state.agent_uuid = self.state.agent_uuid
+
+        # RR (mmr) — rekabetçi ise ve süresi geçtiyse.
+        if state.competitive_tier > 0:
+            if self.state.rr is not None and (now - self._last_mmr_fetch) < MMR_REFRESH:
+                state.rr = self.state.rr
+            else:
+                mmr = self._api.mmr()
+                if mmr:
+                    tier, rr = mmr
+                    state.rr = rr
+                    if tier:
+                        state.competitive_tier = tier
+                    self._last_mmr_fetch = now
+                else:
+                    state.rr = self.state.rr
+
+        with self._lock:
+            self.state = state
+
+        self._push_presence(state)
+
+    def _api_self_presence(self):
+        try:
+            return self._api.self_presence()
+        except Exception as e:
+            logger.debug("presence okunamadı: %s", e)
+            return None
+
+    def _push_presence(self, state: GameState) -> None:
+        sig = (state.signature(), self.settings.rpc_enabled, self.settings.language)
+        if sig == self._last_signature:
+            return
+        self._last_signature = sig
+
+        if not self.settings.rpc_enabled:
+            self.discord.clear()
+        else:
+            data = presence_builder.build(
+                state, self.settings, self.content, self.settings.language, self._start_ts
+            )
+            if data:
+                ok = self.discord.update(data)
+                self.discord_connected = ok or self.discord.connected
+        self._notify()
+
+    # ------------------------------------------------------------------ #
+    def snapshot(self) -> dict:
+        """UI için thread-safe anlık durum."""
+        with self._lock:
+            return {
+                "state": self.state,
+                "valorant": self.valorant_connected,
+                "discord": self.discord_connected,
+                "name": self.player_name,
+                "tag": self.player_tag,
+            }
+
+    def force_refresh(self) -> None:
+        """Ayar değişince (dil/rpc) bir sonraki tick'te presence'ı yeniden kur."""
+        self._last_signature = None
