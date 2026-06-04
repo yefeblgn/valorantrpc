@@ -1,5 +1,3 @@
-"""GameState -> Discord presence sözlüğü (dile duyarlı)."""
-
 from __future__ import annotations
 
 from ..constants import FALLBACK_LARGE_IMAGE, GITHUB_URL
@@ -12,14 +10,7 @@ def _level_text(state: GameState, language: str) -> str:
     return f"{t(language, 'level')} {state.account_level}"
 
 
-def build(
-    state: GameState,
-    settings,
-    content: Content,
-    language: str,
-    start_ts: int,
-) -> dict | None:
-    """Aktif duruma göre Discord presence sözlüğü üret (idle ise None)."""
+def build(state: GameState, settings, content: Content, language: str, start_ts: int) -> dict | None:
     if state.session_state == "idle":
         return None
 
@@ -30,13 +21,17 @@ def build(
     else:
         presence = _menu(state, settings, content, language)
 
-    # Parti
     if settings.show_party and state.party_size > 0:
         presence["party_size"] = [state.party_size, state.party_max]
 
-    # Geçen süre
     if settings.show_elapsed:
         presence["start"] = start_ts
+
+    if state.card_id:
+        presence["party_id"] = f"vrpc_{state.card_id}"
+        if state.session_state in ("menus", "pregame"):
+            presence["join_secret"] = state.card_id
+        presence["spectate_secret"] = f"spec_{state.card_id}"
 
     presence["buttons"] = [{"label": t(language, "github"), "url": GITHUB_URL}]
     return presence
@@ -49,7 +44,6 @@ def _large_card(state: GameState, content: Content, language: str) -> tuple[str,
 
 
 def _rank_small(state: GameState, settings, content: Content) -> tuple[str | None, str]:
-    """Rekabetçi tier için (icon, metin)."""
     icon = content.tier_icon(state.competitive_tier)
     name = content.tier_name(state.competitive_tier)
     rr = state.rr
@@ -62,20 +56,33 @@ def _menu(state: GameState, settings, content: Content, language: str) -> dict:
     large_image, large_text = _large_card(state, content, language)
     details = content.mode_name(state.queue_id) if state.queue_id else t(language, "p_in_menu")
 
-    presence = {
-        "details": details,
-        "large_image": large_image,
-        "large_text": large_text,
-    }
+    presence = {"details": details, "large_image": large_image, "large_text": large_text}
 
-    is_comp = "competitive" in (state.queue_id or "").lower()
-    if is_comp and settings.show_rank and state.competitive_tier > 0:
+    if state.is_queuing:
+        presence["state"] = t(language, "queuing")
+
+    _RANK_MODES = {"competitive", "unrated", "premier"}
+    mode_key = content._queue_key(state.queue_id)
+
+    if settings.show_rank and state.competitive_tier > 0:
         icon, text = _rank_small(state, settings, content)
         if icon:
             presence["small_image"] = icon
             presence["small_text"] = text
+    elif mode_key in _RANK_MODES:
+        # Kompakt rank rozeti: tier>0 → rank ikonu, tier==0 → Derecesiz rozeti
+        tier = state.competitive_tier if state.competitive_tier > 0 else 0
+        icon = content.tier_icon(tier)
+        if icon:
+            presence["small_image"] = icon
+            presence["small_text"] = content.mode_name(state.queue_id)
+    elif state.card_id:
+        card_sq = content.card_square(state.card_id)
+        if card_sq:
+            presence["small_image"] = card_sq
+            presence["small_text"] = f"{state.name}#{state.tag}" if state.name else ""
     else:
-        icon = content.mode_icon(state.queue_id)
+        icon = content.mode_icon_unique(state.queue_id)
         if icon:
             presence["small_image"] = icon
             presence["small_text"] = content.mode_name(state.queue_id)
@@ -84,22 +91,17 @@ def _menu(state: GameState, settings, content: Content, language: str) -> dict:
 
 def _pregame(state: GameState, settings, content: Content, language: str) -> dict:
     map_name, splash = content.map_info(state.map_path)
-    if splash:
-        large_image, large_text = splash, map_name
-    else:
-        large_image, large_text = _large_card(state, content, language)
+    large_image, large_text = (splash, map_name) if splash else _large_card(state, content, language)
 
-    presence = {
-        "details": t(language, "p_selecting_agent"),
-        "large_image": large_image,
-        "large_text": large_text,
-    }
+    presence = {"details": t(language, "p_selecting_agent"), "large_image": large_image, "large_text": large_text}
 
     agent_icon = content.agent_icon(state.agent_uuid)
     agent_name = content.agent_name(state.agent_uuid)
-    if agent_icon and agent_name:
+    if agent_icon:
         presence["small_image"] = agent_icon
-        presence["small_text"] = agent_name
+        presence["small_text"] = agent_name or ""
+        if agent_name:
+            presence["state"] = agent_name
     else:
         icon = content.tier_icon(state.competitive_tier or 0)
         if icon:
@@ -110,26 +112,30 @@ def _pregame(state: GameState, settings, content: Content, language: str) -> dic
 
 def _ingame(state: GameState, settings, content: Content, language: str) -> dict:
     map_name, splash = content.map_info(state.map_path)
-    if splash:
-        large_image, large_text = splash, map_name
-    else:
-        large_image, large_text = _large_card(state, content, language)
+    large_image, large_text = (splash, map_name) if splash else _large_card(state, content, language)
 
-    mode = content.mode_name(state.queue_id)
+    details = content.mode_name(state.queue_id)
+
     if state.ally_score is not None and state.enemy_score is not None:
-        details = f"{mode} · {state.ally_score} - {state.enemy_score}"
+        state_line = f"{t(language, 'p_in_game')} · {state.ally_score} - {state.enemy_score}"
     else:
-        details = mode
+        state_line = t(language, "p_in_game")
 
     presence = {
         "details": details,
+        "state":   state_line,
         "large_image": large_image,
-        "large_text": large_text,
+        "large_text":  large_text,
     }
 
     agent_icon = content.agent_icon(state.agent_uuid)
-    agent_name = content.agent_name(state.agent_uuid)
-    if agent_icon and agent_name:
+    kda_text = f"{state.kills} / {state.deaths} / {state.assists}"
+    if agent_icon:
         presence["small_image"] = agent_icon
-        presence["small_text"] = agent_name
+        presence["small_text"]  = kda_text
+    else:
+        icon = content.mode_icon_unique(state.queue_id)
+        if icon:
+            presence["small_image"] = icon
+            presence["small_text"]  = content.mode_name(state.queue_id)
     return presence

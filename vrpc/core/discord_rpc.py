@@ -1,5 +1,3 @@
-"""Discord Rich Presence (pypresence) sarmalayıcısı — otomatik yeniden bağlanmalı."""
-
 from __future__ import annotations
 
 import logging
@@ -20,10 +18,10 @@ class DiscordRPC:
             self.rpc = Presence(self.client_id)
             self.rpc.connect()
             self.connected = True
-            logger.info("Discord RPC bağlandı")
+            logger.info("Discord RPC connected")
             return True
         except Exception as e:
-            logger.debug("Discord RPC bağlanamadı: %s", e)
+            logger.debug("Discord RPC connect failed: %s", e)
             self.connected = False
             return False
 
@@ -36,7 +34,7 @@ class DiscordRPC:
             self.rpc.update(**clean)
             return True
         except Exception as e:
-            logger.debug("Presence güncellenemedi: %s", e)
+            logger.debug("Presence update failed: %s", e)
             self.connected = False
             return False
 

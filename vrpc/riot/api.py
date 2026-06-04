@@ -1,10 +1,3 @@
-"""Riot yerel + uzak (PD/GLZ) uçlarından oyun verisi okuma.
-
-- Yerel presence: sadece lockfile auth gerektirir (durum, mod, parti, seviye, tier, skor).
-- coregame / pregame: GLZ uçları (oynanan ajan).
-- mmr: PD ucu (RR).
-"""
-
 from __future__ import annotations
 
 import base64
@@ -24,7 +17,6 @@ class RiotApi:
         self.region = region
         self.shard = shard
 
-    # ---- temel uçlar ----
     @property
     def pd(self) -> str:
         return f"https://pd.{self.shard}.a.pvp.net"
@@ -34,13 +26,9 @@ class RiotApi:
         return f"https://glz-{self.region}-1.{self.shard}.a.pvp.net"
 
     def _remote_get(self, url: str, timeout: float = 6.0):
-        return self.auth.session.get(
-            url, headers=self.auth.pd_glz_headers(), timeout=timeout
-        )
+        return self.auth.session.get(url, headers=self.auth.pd_glz_headers(), timeout=timeout)
 
-    # ---- yerel presence (kendi) ----
     def self_presence(self) -> dict | None:
-        """Kendi presence'ımızdaki çözülmüş 'private' veriyi döndür."""
         try:
             r = self.auth.local_get("/chat/v4/presences")
             if r.status_code != 200:
@@ -53,22 +41,25 @@ class RiotApi:
                     decoded = base64.b64decode(priv).decode("utf-8", "ignore")
                     return json.loads(decoded)
         except Exception as e:
-            logger.debug("self_presence hatası: %s", e)
+            logger.debug("self_presence error: %s", e)
         return None
 
-    # ---- ajan (coregame / pregame) ----
     def current_agent(self, session_state: str) -> str | None:
-        """Oynanan ajanın UUID'sini döndür (yoksa None)."""
+        info = self.current_ingame_info(session_state)
+        return info.get("agent") if info else None
+
+    def current_ingame_info(self, session_state: str) -> dict | None:
         try:
             if session_state == "ingame":
-                return self._coregame_agent()
+                return self._coregame_info()
             if session_state == "pregame":
-                return self._pregame_agent()
+                agent = self._pregame_agent()
+                return {"agent": agent, "kills": 0, "deaths": 0, "assists": 0} if agent else None
         except Exception as e:
-            logger.debug("current_agent hatası: %s", e)
+            logger.debug("current_ingame_info error: %s", e)
         return None
 
-    def _coregame_agent(self) -> str | None:
+    def _coregame_info(self) -> dict | None:
         r = self._remote_get(f"{self.glz}/core-game/v1/players/{self.auth.puuid}")
         if r.status_code != 200:
             return None
@@ -80,7 +71,13 @@ class RiotApi:
             return None
         for player in rm.json().get("Players", []):
             if player.get("Subject") == self.auth.puuid:
-                return player.get("CharacterID") or None
+                stats = player.get("Stats") or {}
+                return {
+                    "agent":   player.get("CharacterID") or None,
+                    "kills":   int(stats.get("Kills",   0)),
+                    "deaths":  int(stats.get("Deaths",  0)),
+                    "assists": int(stats.get("Assists", 0)),
+                }
         return None
 
     def _pregame_agent(self) -> str | None:
@@ -101,14 +98,10 @@ class RiotApi:
         for team in teams:
             for player in team.get("Players", []):
                 if player.get("Subject") == self.auth.puuid:
-                    cid = player.get("CharacterID")
-                    # Henüz kilitlenmemişse boş gelebilir.
-                    return cid or None
+                    return player.get("CharacterID") or None
         return None
 
-    # ---- rank / RR (mmr) ----
     def mmr(self) -> tuple[int, int] | None:
-        """(competitive_tier, ranked_rating) döndür; alınamazsa None."""
         try:
             r = self._remote_get(f"{self.pd}/mmr/v1/players/{self.auth.puuid}")
             if r.status_code != 200:
@@ -121,7 +114,6 @@ class RiotApi:
             if tier:
                 return int(tier), int(rr or 0)
 
-            # Yedek: sezon bilgisi.
             seasonal = (
                 data.get("QueueSkills", {})
                 .get("competitive", {})
@@ -130,14 +122,10 @@ class RiotApi:
             best = None
             for info in seasonal.values():
                 if info.get("CompetitiveTier"):
-                    if best is None or info.get("NumberOfGames", 0) >= best.get(
-                        "NumberOfGames", 0
-                    ):
+                    if best is None or info.get("NumberOfGames", 0) >= best.get("NumberOfGames", 0):
                         best = info
             if best:
-                return int(best.get("CompetitiveTier", 0)), int(
-                    best.get("RankedRating", 0)
-                )
+                return int(best.get("CompetitiveTier", 0)), int(best.get("RankedRating", 0))
         except Exception as e:
-            logger.debug("mmr hatası: %s", e)
+            logger.debug("mmr error: %s", e)
         return None

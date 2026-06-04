@@ -1,9 +1,3 @@
-"""Arka plan poller: yerel API'yi yoklar, GameState üretir, Discord'u günceller.
-
-Tüm istisnalar yutulur; ardışık hatalarda backoff uygulanır — thread asla çökmez.
-UI bu sınıfın thread-safe alanlarını (snapshot) okur; ayrıca değişimde on_update çağrılır.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -21,40 +15,33 @@ from .state import GameState, parse_presence
 
 logger = logging.getLogger(__name__)
 
-AGENT_REFRESH = 15.0   # ajan yeniden çekme aralığı (s)
-MMR_REFRESH = 300.0    # RR yeniden çekme aralığı (s)
+INGAME_REFRESH = 10.0
+MMR_REFRESH = 300.0
 
 
 class Poller:
     def __init__(self, settings, on_update=None) -> None:
         self.settings = settings
-        self.on_update = on_update  # parametresiz callable; değişimde çağrılır
-
+        self.on_update = on_update
         self.content = Content(settings.language)
         self.discord = DiscordRPC(DISCORD_CLIENT_ID)
-
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._lock = threading.Lock()
-
-        # --- paylaşılan snapshot (UI okur) ---
         self.state = GameState()
         self.valorant_connected = False
         self.discord_connected = False
         self.player_name = ""
         self.player_tag = ""
-
-        # --- iç durum ---
         self._auth: LocalAuth | None = None
         self._api: RiotApi | None = None
         self._region = self._shard = ""
         self._start_ts = int(time.time())
         self._last_signature: tuple | None = None
-        self._last_agent_fetch = 0.0
+        self._last_ingame_fetch = 0.0
         self._last_mmr_fetch = 0.0
         self._error_streak = 0
 
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
@@ -68,7 +55,6 @@ class Poller:
             self._thread.join(timeout=3)
         self.discord.close()
 
-    # ------------------------------------------------------------------ #
     def _notify(self) -> None:
         if self.on_update:
             try:
@@ -90,17 +76,15 @@ class Poller:
             self._notify()
 
     def _ensure_connection(self) -> bool:
-        """Riot'a bağlan/yeniden bağlan. Bağlıysa True."""
         if self._auth and self._auth.is_valid():
             return True
         auth = LocalAuth()
-        auth.refresh()  # RiotNotRunning yükseltebilir
+        auth.refresh()
         region, shard = detect_region_shard(auth)
         self._auth = auth
         self._region, self._shard = region, shard
         self._api = RiotApi(auth, region, shard)
 
-        # İlk açılışta dili otomatik belirle (kullanıcı henüz değiştirmediyse).
         if not self.settings.language_detected:
             lang = detect_locale(auth)
             self.settings.language = lang
@@ -112,13 +96,11 @@ class Poller:
         with self._lock:
             self.player_name, self.player_tag = name or self.player_name, tag or self.player_tag
             self.valorant_connected = True
-        logger.info("Riot bağlandı: %s#%s [%s/%s]", name, tag, region, shard)
+        logger.info("Riot connected: %s#%s [%s/%s]", name, tag, region, shard)
         return True
 
     def _run(self) -> None:
-        # Discord'a en baştan bağlanmayı dene (oyun kapalıyken bile).
         self.discord_connected = self.discord.connect()
-
         while not self._stop.is_set():
             try:
                 self._tick()
@@ -129,25 +111,21 @@ class Poller:
                 self._stop.wait(POLL_INTERVAL * 2)
             except Exception as e:
                 self._error_streak += 1
-                logger.debug("Poller hatası (%d): %s", self._error_streak, e)
+                logger.debug("Poller error (%d): %s", self._error_streak, e)
                 backoff = min(POLL_INTERVAL * 2 ** min(self._error_streak, 4), 30)
                 self._stop.wait(backoff)
 
     def _tick(self) -> None:
-        # Dil ayarı değiştiyse içeriği güncelle.
-        self.content.set_language(self.settings.language)
-
-        # Discord bağlı değilse yeniden dene.
         if not self.discord.connected:
             self.discord_connected = self.discord.connect()
         else:
             self.discord_connected = True
 
         self._ensure_connection()
+        self.content.set_language(self.settings.language)
 
         private = self._api_self_presence()
         if private is None:
-            # Presence yok ama Riot açık: menü/yükleniyor — idle'a düşürme, bekle.
             return
 
         state = parse_presence(private)
@@ -156,24 +134,31 @@ class Poller:
 
         now = time.time()
 
-        # Ajan (coregame/pregame), aralıklı yenile.
         if state.session_state in ("ingame", "pregame"):
             reuse = (
                 self.state.agent_uuid
                 and self.state.session_state == state.session_state
-                and (now - self._last_agent_fetch) < AGENT_REFRESH
+                and (now - self._last_ingame_fetch) < INGAME_REFRESH
             )
             if reuse:
                 state.agent_uuid = self.state.agent_uuid
+                state.kills   = self.state.kills
+                state.deaths  = self.state.deaths
+                state.assists = self.state.assists
             else:
-                agent = self._api.current_agent(state.session_state)
-                if agent:
-                    state.agent_uuid = agent
-                    self._last_agent_fetch = now
+                info = self._api.current_ingame_info(state.session_state)
+                if info:
+                    state.agent_uuid = info.get("agent") or self.state.agent_uuid
+                    state.kills      = info.get("kills",   0)
+                    state.deaths     = info.get("deaths",  0)
+                    state.assists    = info.get("assists", 0)
+                    self._last_ingame_fetch = now
                 elif self.state.agent_uuid:
                     state.agent_uuid = self.state.agent_uuid
+                    state.kills      = self.state.kills
+                    state.deaths     = self.state.deaths
+                    state.assists    = self.state.assists
 
-        # RR (mmr) — rekabetçi ise ve süresi geçtiyse.
         if state.competitive_tier > 0:
             if self.state.rr is not None and (now - self._last_mmr_fetch) < MMR_REFRESH:
                 state.rr = self.state.rr
@@ -197,7 +182,7 @@ class Poller:
         try:
             return self._api.self_presence()
         except Exception as e:
-            logger.debug("presence okunamadı: %s", e)
+            logger.debug("presence read error: %s", e)
             return None
 
     def _push_presence(self, state: GameState) -> None:
@@ -217,9 +202,7 @@ class Poller:
                 self.discord_connected = ok or self.discord.connected
         self._notify()
 
-    # ------------------------------------------------------------------ #
     def snapshot(self) -> dict:
-        """UI için thread-safe anlık durum."""
         with self._lock:
             return {
                 "state": self.state,
@@ -230,5 +213,4 @@ class Poller:
             }
 
     def force_refresh(self) -> None:
-        """Ayar değişince (dil/rpc) bir sonraki tick'te presence'ı yeniden kur."""
         self._last_signature = None

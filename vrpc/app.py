@@ -1,5 +1,3 @@
-"""Uygulama orkestrasyonu: poller + tray + mini panel."""
-
 from __future__ import annotations
 
 import logging
@@ -16,9 +14,7 @@ logger = logging.getLogger(__name__)
 class App:
     def __init__(self) -> None:
         self.settings = Settings.load()
-        # Kayıtlı autostart durumunu sistemle eşitle (sessizce).
         set_autostart(self.settings.autostart)
-
         self.poller = Poller(self.settings, on_update=self._on_poller_update)
         self.panel = Panel(
             self.settings, self.poller,
@@ -37,7 +33,6 @@ class App:
         )
         self._running = True
 
-    # ------------------------------------------------------------------ #
     def run(self) -> None:
         self.poller.start()
         self.tray.run()
@@ -47,7 +42,6 @@ class App:
             self._shutdown()
 
     def quit(self) -> None:
-        # Panel ana thread'inden çağrılır.
         try:
             self.panel.quit()
         except Exception:
@@ -57,32 +51,22 @@ class App:
         if not self._running:
             return
         self._running = False
-        logger.info("Kapatılıyor…")
-        try:
-            self.poller.stop()
-        except Exception:
-            pass
-        try:
-            self.tray.stop()
-        except Exception:
-            pass
-        try:
-            self.panel.destroy()
-        except Exception:
-            pass
+        logger.info("Shutting down...")
+        for target in (self.poller.stop, self.tray.stop, self.panel.destroy):
+            try:
+                target()
+            except Exception:
+                pass
 
-    # ------------------------------------------------------------------ #
-    # Ayar uygulama (panel veya tray kaynaklı). Kaydetme çağıran tarafta yapılır.
     def _apply_setting(self, key: str) -> None:
         if key == "language":
             self.poller.content.set_language(self.settings.language)
             self.poller.force_refresh()
         elif key == "autostart":
             set_autostart(self.settings.autostart)
-        else:  # rpc_enabled, show_*
+        else:
             self.poller.force_refresh()
 
-    # ---- tray kaynaklı (settings'i burada güncelle + paneli eşitle) ----
     def _tray_toggle_rpc(self) -> None:
         self.settings.rpc_enabled = not self.settings.rpc_enabled
         self.settings.save()
@@ -102,7 +86,6 @@ class App:
         self._apply_setting("autostart")
         self.panel.sync_controls()
 
-    # ------------------------------------------------------------------ #
     def _on_poller_update(self) -> None:
         snap = self.poller.snapshot()
         lang = self.settings.language

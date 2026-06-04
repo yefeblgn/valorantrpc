@@ -44,6 +44,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "p_selecting_agent": "Ajan Seçiliyor",
         "p_pregame_small": "Oyun Öncesi",
         "p_lobby": "Lobide",
+        "queuing": "Sırada",
+        "p_in_game": "Oyunda",
     },
     "en": {
         "app_title": "ValorantRPC",
@@ -79,6 +81,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "p_selecting_agent": "Selecting Agent",
         "p_pregame_small": "Pre-Game",
         "p_lobby": "In Lobby",
+        "queuing": "In Queue",
+        "p_in_game": "In Game",
     },
 }
 

@@ -1,5 +1,3 @@
-"""Kompakt, koyu temalı mini panel (customtkinter)."""
-
 from __future__ import annotations
 
 import io
@@ -18,12 +16,24 @@ from . import icons
 
 logger = logging.getLogger(__name__)
 
-ACCENT = "#ff4655"
-ACCENT_HOVER = "#e03b49"
-BG_CARD = "#1b1d24"
+ACCENT   = "#ff4655"
+ACCENT_H = "#e03b49"
+BG       = "#0f1117"
+BG_CARD  = "#161922"
+BG_TITLE = "#0b0d13"
+SEP      = "#1c1f2e"
+BADGE    = "#1e2235"
+MUTED    = "#6a6e82"
+DIM      = "#3e4155"
+FONT     = "Segoe UI"
+W, H     = 300, 520
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
+
+
+def _f(size: int = 13, bold: bool = False) -> ctk.CTkFont:
+    return ctk.CTkFont(family=FONT, size=size, weight="bold" if bold else "normal")
 
 
 class Panel(ctk.CTk):
@@ -32,153 +42,188 @@ class Panel(ctk.CTk):
         self.settings = settings
         self.poller = poller
         self.content = poller.content
-        self.on_setting_change = on_setting_change  # (key) -> None
+        self.on_setting_change = on_setting_change
         self._on_quit = on_quit
         self._img_cache: dict[str, ctk.CTkImage] = {}
+        self._dx = self._dy = 0
 
-        self.title("ValorantRPC")
-        self.geometry("380x560")
-        self.minsize(380, 560)
+        self.overrideredirect(True)
+        self.wm_attributes("-topmost", True)
+        self.configure(fg_color=BG)
         self.resizable(False, False)
-        self.configure(fg_color="#121317")
-        ico = icons.app_ico_path()
-        if ico:
-            try:
-                self.iconbitmap(ico)
-            except Exception:
-                pass
+        self.withdraw()
 
-        self.protocol("WM_DELETE_WINDOW", self.hide)
         self._build()
         self._retext()
         self._refresh_loop()
 
-    # ------------------------------------------------------------------ #
+    def _snap_br(self) -> None:
+        self.update_idletasks()
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        self.geometry(f"{W}x{H}+{sw - W - 14}+{sh - H - 54}")
+
     def _build(self) -> None:
-        pad = {"padx": 16, "pady": (0, 10)}
+        title = ctk.CTkFrame(self, fg_color=BG_TITLE, height=42, corner_radius=0)
+        title.pack(fill="x")
+        title.pack_propagate(False)
+        for w in (title,):
+            w.bind("<ButtonPress-1>", self._ds)
+            w.bind("<B1-Motion>", self._dm)
 
-        # --- Başlık ---
-        header = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=14)
-        header.pack(fill="x", padx=16, pady=(16, 10))
+        ai = icons.app_icon_image().resize((22, 22), Image.LANCZOS)
+        self._ai = ctk.CTkImage(light_image=ai, dark_image=ai, size=(22, 22))
+        il = ctk.CTkLabel(title, image=self._ai, text="")
+        il.pack(side="left", padx=(12, 6))
+        il.bind("<ButtonPress-1>", self._ds)
+        il.bind("<B1-Motion>", self._dm)
 
-        self.banner_label = ctk.CTkLabel(header, text="", height=96)
-        self.banner_label.pack(fill="x", padx=8, pady=8)
+        tl = ctk.CTkLabel(title, text="ValorantRPC", font=_f(13, True))
+        tl.pack(side="left")
+        tl.bind("<ButtonPress-1>", self._ds)
+        tl.bind("<B1-Motion>", self._dm)
 
-        self.name_label = ctk.CTkLabel(
-            header, text="—", font=ctk.CTkFont(size=18, weight="bold")
-        )
-        self.name_label.pack(anchor="w", padx=14)
+        ctk.CTkButton(
+            title, text="✕", width=38, height=42, corner_radius=0,
+            fg_color="transparent", hover_color="#2d1217",
+            text_color="#888", font=_f(12), command=self.hide,
+        ).pack(side="right")
 
-        rankrow = ctk.CTkFrame(header, fg_color="transparent")
-        rankrow.pack(fill="x", padx=14, pady=(0, 10))
-        self.rank_icon_label = ctk.CTkLabel(rankrow, text="", width=28)
-        self.rank_icon_label.pack(side="left")
-        self.rank_label = ctk.CTkLabel(
-            rankrow, text="", font=ctk.CTkFont(size=13), text_color="#b9bcc6"
-        )
-        self.rank_label.pack(side="left", padx=6)
+        body = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
+        body.pack(fill="both", expand=True)
 
-        # --- Anlık aktivite ---
-        self.activity = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=14)
-        self.activity.pack(fill="x", **pad)
+        def card(**kw) -> ctk.CTkFrame:
+            f = ctk.CTkFrame(body, fg_color=BG_CARD, corner_radius=10, **kw)
+            f.pack(fill="x", padx=10, pady=(0, 6))
+            return f
 
-        self.status_dot = ctk.CTkLabel(
-            self.activity, text="●", text_color="#5a5d66",
-            font=ctk.CTkFont(size=16),
-        )
-        self.status_dot.grid(row=0, column=0, padx=(14, 6), pady=(12, 4), sticky="w")
-        self.status_label = ctk.CTkLabel(
-            self.activity, text="—", font=ctk.CTkFont(size=15, weight="bold")
-        )
-        self.status_label.grid(row=0, column=1, pady=(12, 4), sticky="w")
+        p = card()
+        self.banner = ctk.CTkLabel(p, text="", height=74)
+        self.banner.pack(fill="x")
+        ctk.CTkFrame(p, height=1, fg_color=SEP).pack(fill="x")
+        ir = ctk.CTkFrame(p, fg_color="transparent")
+        ir.pack(fill="x", padx=12, pady=(8, 10))
+        self.name_lbl = ctk.CTkLabel(ir, text="—", font=_f(15, True), anchor="w")
+        self.name_lbl.pack(anchor="w")
+        rr = ctk.CTkFrame(ir, fg_color="transparent")
+        rr.pack(anchor="w", pady=(3, 0))
+        self.rank_icon = ctk.CTkLabel(rr, text="", width=20)
+        self.rank_icon.pack(side="left")
+        self.rank_lbl = ctk.CTkLabel(rr, text="", font=_f(12), text_color=MUTED)
+        self.rank_lbl.pack(side="left", padx=(5, 0))
 
-        self.detail_label = ctk.CTkLabel(
-            self.activity, text="", justify="left",
-            font=ctk.CTkFont(size=12), text_color="#9a9da7",
-        )
-        self.detail_label.grid(row=1, column=0, columnspan=2, padx=14, pady=(0, 12), sticky="w")
+        body.pack_configure(pady=(8, 0))
 
-        # --- Kontroller ---
-        ctrl = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=14)
-        ctrl.pack(fill="x", **pad)
+        act = ctk.CTkFrame(body, fg_color=BG_CARD, corner_radius=10)
+        act.pack(fill="x", padx=10, pady=(0, 6))
+        sr = ctk.CTkFrame(act, fg_color="transparent")
+        sr.pack(fill="x", padx=12, pady=(10, 4))
+        self.dot = ctk.CTkLabel(sr, text="●", text_color="#383b50", font=_f(12), width=14)
+        self.dot.pack(side="left")
+        self.status_lbl = ctk.CTkLabel(sr, text="—", font=_f(13, True))
+        self.status_lbl.pack(side="left", padx=(6, 0))
+        ctk.CTkFrame(act, height=1, fg_color=SEP).pack(fill="x", padx=12)
+        self.df = ctk.CTkFrame(act, fg_color="transparent")
+        self.df.pack(fill="x", padx=12, pady=(4, 10))
+        self._rows: dict[str, tuple] = {}
+        for key in ("mode", "map", "agent", "score", "party"):
+            row = ctk.CTkFrame(self.df, fg_color="transparent")
+            bg = ctk.CTkFrame(row, width=24, height=24, corner_radius=5, fg_color=BADGE)
+            bg.pack(side="left")
+            bg.pack_propagate(False)
+            ic = ctk.CTkLabel(bg, text="", width=18, height=18)
+            ic.place(relx=0.5, rely=0.5, anchor="center")
+            tx = ctk.CTkLabel(row, text="", font=_f(11), text_color=MUTED, anchor="w")
+            tx.pack(side="left", padx=(7, 0))
+            self._rows[key] = (row, ic, tx)
 
-        self.rpc_switch = ctk.CTkSwitch(
-            ctrl, text="", command=self._toggle_rpc,
-            progress_color=ACCENT, font=ctk.CTkFont(size=13),
-        )
-        self.rpc_switch.pack(anchor="w", padx=14, pady=(12, 6))
+        ctrl = ctk.CTkFrame(body, fg_color=BG_CARD, corner_radius=10)
+        ctrl.pack(fill="x", padx=10, pady=(0, 6))
+
+        def sep():
+            ctk.CTkFrame(ctrl, height=1, fg_color=SEP).pack(fill="x", padx=12)
+
+        def sw_row(pady_=(8, 4)) -> tuple:
+            r = ctk.CTkFrame(ctrl, fg_color="transparent")
+            r.pack(fill="x", padx=12, pady=pady_)
+            sw = ctk.CTkSwitch(r, text="", progress_color=ACCENT, width=38, height=20)
+            sw.pack(side="left")
+            lb = ctk.CTkLabel(r, text="", font=_f(12))
+            lb.pack(side="left", padx=(8, 0))
+            return sw, lb
+
+        self.rpc_sw, self.rpc_lbl = sw_row()
+        self.rpc_sw.configure(command=self._toggle_rpc)
         if self.settings.rpc_enabled:
-            self.rpc_switch.select()
+            self.rpc_sw.select()
 
-        langrow = ctk.CTkFrame(ctrl, fg_color="transparent")
-        langrow.pack(fill="x", padx=14, pady=6)
-        self.lang_caption = ctk.CTkLabel(langrow, text="", font=ctk.CTkFont(size=13))
-        self.lang_caption.pack(side="left")
+        sep()
+
+        lr = ctk.CTkFrame(ctrl, fg_color="transparent")
+        lr.pack(fill="x", padx=12, pady=(5, 5))
+        self.lang_cap = ctk.CTkLabel(lr, text="", font=_f(12))
+        self.lang_cap.pack(side="left")
         self.lang_seg = ctk.CTkSegmentedButton(
-            langrow, values=["TR", "EN"], command=self._set_language,
-            selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
+            lr, values=["TR", "EN"], command=self._set_lang,
+            selected_color=ACCENT, selected_hover_color=ACCENT_H, font=_f(11, True), width=76,
         )
         self.lang_seg.set("TR" if self.settings.language == "tr" else "EN")
         self.lang_seg.pack(side="right")
 
-        self.autostart_switch = ctk.CTkSwitch(
-            ctrl, text="", command=self._toggle_autostart,
-            progress_color=ACCENT, font=ctk.CTkFont(size=13),
-        )
-        self.autostart_switch.pack(anchor="w", padx=14, pady=6)
-        if self.settings.autostart:
-            self.autostart_switch.select()
+        sep()
 
-        # show_* küçük seçenekler
-        opts = ctk.CTkFrame(ctrl, fg_color="transparent")
-        opts.pack(fill="x", padx=14, pady=(6, 12))
-        self._chk = {}
+        self.auto_sw, self.auto_lbl = sw_row((4, 6))
+        self.auto_sw.configure(command=self._toggle_auto)
+        if self.settings.autostart:
+            self.auto_sw.select()
+
+        sep()
+
+        og = ctk.CTkFrame(ctrl, fg_color="transparent")
+        og.pack(fill="x", padx=12, pady=(5, 10))
+        og.columnconfigure(0, weight=1)
+        og.columnconfigure(1, weight=1)
+        self._chk: dict[str, ctk.CTkCheckBox] = {}
         for i, key in enumerate(("show_rank", "show_level", "show_party", "show_elapsed")):
             var = ctk.BooleanVar(value=getattr(self.settings, key))
-            chk = ctk.CTkCheckBox(
-                opts, text="", variable=var, width=20, checkbox_width=18,
-                checkbox_height=18, fg_color=ACCENT, hover_color=ACCENT_HOVER,
-                command=lambda k=key, v=var: self._toggle_show(k, v),
-                font=ctk.CTkFont(size=11),
+            cb = ctk.CTkCheckBox(
+                og, text="", variable=var, checkbox_width=17, checkbox_height=17,
+                fg_color=ACCENT, hover_color=ACCENT_H, border_color="#2a2e42",
+                command=lambda k=key, v=var: self._toggle_show(k, v), font=_f(11),
             )
-            chk.grid(row=i // 2, column=i % 2, sticky="w", padx=4, pady=3)
-            self._chk[key] = chk
+            cb.grid(row=i // 2, column=i % 2, sticky="w", padx=2, pady=2)
+            self._chk[key] = cb
 
-        # --- Alt bilgi ---
-        footer = ctk.CTkFrame(self, fg_color="transparent")
-        footer.pack(fill="x", side="bottom", padx=16, pady=10)
-        self.version_label = ctk.CTkLabel(
-            footer, text=f"v{__version__}", text_color="#6b6e78",
-            font=ctk.CTkFont(size=11),
-        )
-        self.version_label.pack(side="left")
-        self.github_btn = ctk.CTkButton(
-            footer, text="GitHub", width=80, height=26, fg_color=ACCENT,
-            hover_color=ACCENT_HOVER, command=lambda: webbrowser.open(GITHUB_URL),
-        )
-        self.github_btn.pack(side="right")
+        ft = ctk.CTkFrame(body, fg_color="transparent")
+        ft.pack(fill="x", padx=10, pady=(0, 10))
+        self.ver_lbl = ctk.CTkLabel(ft, text=f"v{__version__}", text_color=DIM, font=_f(10))
+        self.ver_lbl.pack(side="left")
+        ctk.CTkButton(
+            ft, text="GitHub", width=68, height=22,
+            fg_color=ACCENT, hover_color=ACCENT_H, font=_f(11, True), corner_radius=6,
+            command=lambda: webbrowser.open(GITHUB_URL),
+        ).pack(side="right")
 
-    # ------------------------------------------------------------------ #
+    def _ds(self, e):
+        self._dx, self._dy = e.x_root - self.winfo_x(), e.y_root - self.winfo_y()
+
+    def _dm(self, e):
+        self.geometry(f"+{e.x_root - self._dx}+{e.y_root - self._dy}")
+
     def _retext(self) -> None:
         lang = self.settings.language
-        self.rpc_switch.configure(text=t(lang, "rpc_enabled"))
-        self.lang_caption.configure(text=t(lang, "language"))
-        self.autostart_switch.configure(text=t(lang, "autostart"))
-        labels = {
-            "show_rank": "show_rank", "show_level": "show_level",
-            "show_party": "show_party", "show_elapsed": "show_elapsed",
-        }
-        for key, chk in self._chk.items():
-            chk.configure(text=t(lang, labels[key]))
+        self.rpc_lbl.configure(text=t(lang, "rpc_enabled"))
+        self.lang_cap.configure(text=t(lang, "language"))
+        self.auto_lbl.configure(text=t(lang, "autostart"))
+        for key, cb in self._chk.items():
+            cb.configure(text=t(lang, key))
 
-    # ---- kontrol callback'leri ----
-    def _toggle_rpc(self) -> None:
-        self.settings.rpc_enabled = bool(self.rpc_switch.get())
+    def _toggle_rpc(self):
+        self.settings.rpc_enabled = bool(self.rpc_sw.get())
         self.settings.save()
         self.on_setting_change("rpc_enabled")
 
-    def _set_language(self, value: str) -> None:
-        lang = "tr" if value == "TR" else "en"
+    def _set_lang(self, val: str):
+        lang = "tr" if val == "TR" else "en"
         self.settings.language = lang
         self.settings.language_detected = True
         self.settings.save()
@@ -186,45 +231,41 @@ class Panel(ctk.CTk):
         self._retext()
         self.on_setting_change("language")
 
-    def _toggle_autostart(self) -> None:
-        self.settings.autostart = bool(self.autostart_switch.get())
+    def _toggle_auto(self):
+        self.settings.autostart = bool(self.auto_sw.get())
         self.settings.save()
         self.on_setting_change("autostart")
 
-    def _toggle_show(self, key: str, var) -> None:
+    def _toggle_show(self, key, var):
         setattr(self.settings, key, bool(var.get()))
         self.settings.save()
         self.on_setting_change(key)
 
-    # ---- görsel yükleme ----
-    def _load_image(self, url: str, setter, size) -> None:
+    def _load(self, url: str, setter, size: tuple) -> None:
         if not url:
             return
-        cache_key = f"{url}@{size}"
-        if cache_key in self._img_cache:
-            setter(self._img_cache[cache_key])
+        k = f"{url}@{size}"
+        if k in self._img_cache:
+            setter(self._img_cache[k])
             return
-
         def work():
             try:
                 r = requests.get(url, timeout=8)
                 if r.status_code != 200:
                     return
                 img = Image.open(io.BytesIO(r.content)).convert("RGBA")
-                cimg = ctk.CTkImage(light_image=img, dark_image=img, size=size)
-                self._img_cache[cache_key] = cimg
-                self.after(0, lambda: setter(cimg))
+                ci = ctk.CTkImage(light_image=img, dark_image=img, size=size)
+                self._img_cache[k] = ci
+                self.after(0, lambda: setter(ci))
             except Exception as e:
-                logger.debug("Görsel yüklenemedi: %s", e)
-
+                logger.debug("img: %s", e)
         threading.Thread(target=work, daemon=True).start()
 
-    # ---- periyodik yenileme ----
     def _refresh_loop(self) -> None:
         try:
             self._refresh()
         except Exception as e:
-            logger.debug("Panel yenileme hatası: %s", e)
+            logger.debug("refresh: %s", e)
         self.after(1000, self._refresh_loop)
 
     def _refresh(self) -> None:
@@ -232,87 +273,87 @@ class Panel(ctk.CTk):
         state = snap["state"]
         lang = self.settings.language
 
-        # Oyuncu
-        if snap["name"]:
-            self.name_label.configure(text=f"{snap['name']}#{snap['tag']}")
-        else:
-            self.name_label.configure(text=t(lang, "no_player"))
+        self.name_lbl.configure(
+            text=f"{snap['name']}#{snap['tag']}" if snap["name"] else t(lang, "no_player")
+        )
 
-        # Banner (profil kartı)
-        card_url = self.content.card_wide(state.card_id)
-        if card_url:
-            self._load_image(
-                card_url,
-                lambda im: self.banner_label.configure(image=im, text=""),
-                (332, 96),
-            )
+        if cu := self.content.card_wide(state.card_id):
+            self._load(cu, lambda im: self.banner.configure(image=im, text=""), (280, 74))
 
-        # Rank
         if state.competitive_tier > 0:
-            name = self.content.tier_name(state.competitive_tier)
-            rr = f" · {state.rr} RR" if state.rr is not None else ""
-            self.rank_label.configure(text=f"{name}{rr}")
-            self._load_image(
-                self.content.tier_icon(state.competitive_tier),
-                lambda im: self.rank_icon_label.configure(image=im, text=""),
-                (24, 24),
-            )
+            rr = f"  ·  {state.rr} RR" if state.rr is not None else ""
+            self.rank_lbl.configure(text=f"{self.content.tier_name(state.competitive_tier)}{rr}")
+            if tu := self.content.tier_icon(state.competitive_tier):
+                self._load(tu, lambda im: self.rank_icon.configure(image=im, text=""), (20, 20))
         else:
-            self.rank_label.configure(text=t(lang, "unranked"))
-            self.rank_icon_label.configure(image=None, text="")
+            self.rank_lbl.configure(text=t(lang, "unranked"))
+            self.rank_icon.configure(image=None, text="")
 
-        # Durum
         if not snap["valorant"]:
-            self.status_dot.configure(text_color="#5a5d66")
-            self.status_label.configure(text=t(lang, "status_idle"))
-            self.detail_label.configure(text="")
+            self.dot.configure(text_color="#383b50")
+            self.status_lbl.configure(text=t(lang, "status_idle"))
+            self._hide_rows()
             return
 
-        status_map = {
-            "menus": ("status_menu", "#3ba55d"),
-            "pregame": ("status_pregame", "#faa61a"),
-            "ingame": ("status_ingame", ACCENT),
-            "idle": ("status_idle", "#5a5d66"),
-        }
-        key, color = status_map.get(state.session_state, ("status_menu", "#3ba55d"))
-        self.status_dot.configure(text_color=color)
-        self.status_label.configure(text=t(lang, key))
-        self.detail_label.configure(text=self._detail_text(state, lang))
+        clr = {"menus": "#3ba55d", "pregame": "#faa61a", "ingame": ACCENT, "idle": "#383b50"}
+        key = {"menus": "status_menu", "pregame": "status_pregame",
+               "ingame": "status_ingame", "idle": "status_idle"}
+        ss = state.session_state
+        dot_color = "#f0a500" if state.is_queuing else clr.get(ss, "#383b50")
+        status_text = t(lang, "queuing") if state.is_queuing else t(lang, key.get(ss, "status_menu"))
+        self.dot.configure(text_color=dot_color)
+        self.status_lbl.configure(text=status_text)
+        self._show_rows(state, lang)
 
-    def _detail_text(self, state, lang: str) -> str:
-        lines = []
+    def _hide_rows(self) -> None:
+        for row, _, _ in self._rows.values():
+            row.pack_forget()
+
+    def _show_rows(self, state, lang: str) -> None:
+        for row, _, _ in self._rows.values():
+            row.pack_forget()
+        items = []
         if state.queue_id or state.session_state != "menus":
-            lines.append(f"{t(lang, 'mode')}: {self.content.mode_name(state.queue_id)}")
-        map_name, _ = self.content.map_info(state.map_path)
-        if map_name:
-            lines.append(f"{t(lang, 'map')}: {map_name}")
-        agent = self.content.agent_name(state.agent_uuid)
-        if agent:
-            lines.append(f"{t(lang, 'agent')}: {agent}")
+            items.append(("mode", self.content.mode_icon(state.queue_id), (20, 20),
+                          self.content.mode_name(state.queue_id)))
+        mn, _ = self.content.map_info(state.map_path)
+        if mn:
+            items.append(("map", None, None, f"{t(lang,'map')}: {mn}"))
+        an = self.content.agent_name(state.agent_uuid)
+        ai = self.content.agent_icon(state.agent_uuid) if state.agent_uuid else None
+        if an or ai:
+            items.append(("agent", ai, (20, 20), an or ""))
         if state.ally_score is not None and state.enemy_score is not None:
-            lines.append(f"{t(lang, 'score')}: {state.ally_score} - {state.enemy_score}")
+            items.append(("score", None, None,
+                          f"{t(lang,'score')}: {state.ally_score} - {state.enemy_score}"))
         if state.party_size > 1:
-            lines.append(f"{t(lang, 'party')}: {state.party_size}/{state.party_max}")
-        return "\n".join(lines)
+            items.append(("party", None, None,
+                          f"{t(lang,'party')}: {state.party_size}/{state.party_max}"))
+        for k, iu, isz, txt in items:
+            row, ic, tx = self._rows[k]
+            tx.configure(text=txt)
+            if iu and isz:
+                self._load(iu, lambda im, l=ic: l.configure(image=im, text=""), isz)
+            else:
+                ic.configure(image=None, text="")
+            row.pack(anchor="w", pady=2, fill="x")
 
-    # ---- tray'den değişiklikte kontrolleri eşitle ----
     def sync_controls(self) -> None:
-        self.after(0, self._sync_controls)
+        self.after(0, self._sync)
 
-    def _sync_controls(self) -> None:
-        (self.rpc_switch.select if self.settings.rpc_enabled else self.rpc_switch.deselect)()
-        (self.autostart_switch.select if self.settings.autostart else self.autostart_switch.deselect)()
+    def _sync(self) -> None:
+        (self.rpc_sw.select if self.settings.rpc_enabled else self.rpc_sw.deselect)()
+        (self.auto_sw.select if self.settings.autostart else self.auto_sw.deselect)()
         self.lang_seg.set("TR" if self.settings.language == "tr" else "EN")
-        for key, chk in self._chk.items():
-            (chk.select if getattr(self.settings, key) else chk.deselect)()
+        for key, cb in self._chk.items():
+            (cb.select if getattr(self.settings, key) else cb.deselect)()
         self._retext()
 
-    # ---- göster/gizle ----
     def show(self) -> None:
-        # Tray thread'inden de güvenli çağrılabilsin diye after ile sırala.
         self.after(0, self._do_show)
 
     def _do_show(self) -> None:
+        self._snap_br()
         self.deiconify()
         self.lift()
         self.focus_force()
