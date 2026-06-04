@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import inspect
 import logging
 
 from pypresence import Presence
 
 logger = logging.getLogger(__name__)
+
+# pypresence update()'in kabul ettiği geçerli parametreler (self/pid hariç).
+# Geçersiz bir anahtar tüm RPC'yi kırmasın diye payload bununla filtrelenir.
+_VALID_KEYS = {
+    p for p in inspect.signature(Presence.update).parameters
+    if p not in ("self", "pid", "payload_override")
+}
 
 
 class DiscordRPC:
@@ -30,7 +38,8 @@ class DiscordRPC:
             if not self.connect():
                 return False
         try:
-            clean = {k: v for k, v in presence.items() if v is not None}
+            clean = {k: v for k, v in presence.items()
+                     if v is not None and k in _VALID_KEYS}
             self.rpc.update(**clean)
             return True
         except Exception as e:

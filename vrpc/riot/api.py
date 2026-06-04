@@ -44,19 +44,26 @@ class RiotApi:
             logger.debug("self_presence error: %s", e)
         return None
 
-    def current_agent(self, session_state: str) -> str | None:
-        info = self.current_ingame_info(session_state)
-        return info.get("agent") if info else None
+    def match_phase(self) -> dict | None:
+        """GLZ uçlarını sorgulayarak gerçek oyun fazını belirle.
 
-    def current_ingame_info(self, session_state: str) -> dict | None:
+        Döner: {"phase": "ingame"|"pregame", "agent": uuid|None} veya None (maçta değil).
+        Presence'ın sessionLoopState'i gecikebildiği için bu kaynak daha güvenilir.
+        """
         try:
-            if session_state == "ingame":
-                return self._coregame_info()
-            if session_state == "pregame":
-                agent = self._pregame_agent()
-                return {"agent": agent, "kills": 0, "deaths": 0, "assists": 0} if agent else None
+            info = self._coregame_info()
+            if info is not None:
+                info["phase"] = "ingame"
+                return info
         except Exception as e:
-            logger.debug("current_ingame_info error: %s", e)
+            logger.debug("coregame error: %s", e)
+        try:
+            info = self._pregame_info()
+            if info is not None:
+                info["phase"] = "pregame"
+                return info
+        except Exception as e:
+            logger.debug("pregame error: %s", e)
         return None
 
     def _coregame_info(self) -> dict | None:
@@ -68,19 +75,13 @@ class RiotApi:
             return None
         rm = self._remote_get(f"{self.glz}/core-game/v1/matches/{match_id}")
         if rm.status_code != 200:
-            return None
+            return {"agent": None}
         for player in rm.json().get("Players", []):
             if player.get("Subject") == self.auth.puuid:
-                stats = player.get("Stats") or {}
-                return {
-                    "agent":   player.get("CharacterID") or None,
-                    "kills":   int(stats.get("Kills",   0)),
-                    "deaths":  int(stats.get("Deaths",  0)),
-                    "assists": int(stats.get("Assists", 0)),
-                }
-        return None
+                return {"agent": player.get("CharacterID") or None}
+        return {"agent": None}
 
-    def _pregame_agent(self) -> str | None:
+    def _pregame_info(self) -> dict | None:
         r = self._remote_get(f"{self.glz}/pregame/v1/players/{self.auth.puuid}")
         if r.status_code != 200:
             return None
@@ -89,7 +90,7 @@ class RiotApi:
             return None
         rm = self._remote_get(f"{self.glz}/pregame/v1/matches/{match_id}")
         if rm.status_code != 200:
-            return None
+            return {"agent": None}
         data = rm.json()
         teams = data.get("Teams") or []
         ally = data.get("AllyTeam")
@@ -98,8 +99,8 @@ class RiotApi:
         for team in teams:
             for player in team.get("Players", []):
                 if player.get("Subject") == self.auth.puuid:
-                    return player.get("CharacterID") or None
-        return None
+                    return {"agent": player.get("CharacterID") or None}
+        return {"agent": None}
 
     def mmr(self) -> tuple[int, int] | None:
         try:

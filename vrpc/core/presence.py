@@ -21,26 +21,32 @@ def build(state: GameState, settings, content: Content, language: str, start_ts:
     else:
         presence = _menu(state, settings, content, language)
 
-    if settings.show_party and state.party_size > 0:
-        presence["party_size"] = [state.party_size, state.party_max]
+    presence["large_text"] = "by yefeblgn"
 
     if settings.show_elapsed:
         presence["start"] = start_ts
 
+    # "Lobiye Katıl" daveti — Discord '+' menüsünden kanala gönderilebilir.
+    # join secret + party (içinde yer olacak şekilde: current < max) gerekir.
+    # Discord secret + buttons'ı AYNI ANDA kabul etmediği için davet aktifken
+    # GitHub butonu gönderilmez (ikisi birlikte tüm RPC'yi kırar).
     if state.card_id:
+        cur = state.party_size if state.party_size > 0 else 1
+        mx = state.party_max if state.party_max > cur else cur + 1
         presence["party_id"] = f"vrpc_{state.card_id}"
-        if state.session_state in ("menus", "pregame"):
-            presence["join_secret"] = state.card_id
-        presence["spectate_secret"] = f"spec_{state.card_id}"
+        presence["party_size"] = [cur, mx]
+        presence["join"] = f"vrpc_join_{state.card_id}"
+    else:
+        if settings.show_party and state.party_size > 0:
+            presence["party_size"] = [state.party_size, state.party_max]
+        presence["buttons"] = [{"label": t(language, "github"), "url": GITHUB_URL}]
 
-    presence["buttons"] = [{"label": t(language, "github"), "url": GITHUB_URL}]
     return presence
 
 
 def _large_card(state: GameState, content: Content, language: str) -> tuple[str, str]:
-    card = content.card_wide(state.card_id) or FALLBACK_LARGE_IMAGE
     text = _level_text(state, language) if state.account_level else t(language, "app_title")
-    return card, text
+    return FALLBACK_LARGE_IMAGE, text
 
 
 def _rank_small(state: GameState, settings, content: Content) -> tuple[str | None, str]:
@@ -129,10 +135,10 @@ def _ingame(state: GameState, settings, content: Content, language: str) -> dict
     }
 
     agent_icon = content.agent_icon(state.agent_uuid)
-    kda_text = f"{state.kills} / {state.deaths} / {state.assists}"
+    agent_name = content.agent_name(state.agent_uuid)
     if agent_icon:
         presence["small_image"] = agent_icon
-        presence["small_text"]  = kda_text
+        presence["small_text"]  = agent_name or content.mode_name(state.queue_id)
     else:
         icon = content.mode_icon_unique(state.queue_id)
         if icon:

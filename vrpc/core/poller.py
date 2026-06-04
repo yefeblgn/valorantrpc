@@ -134,30 +134,24 @@ class Poller:
 
         now = time.time()
 
-        if state.session_state in ("ingame", "pregame"):
-            reuse = (
-                self.state.agent_uuid
-                and self.state.session_state == state.session_state
-                and (now - self._last_ingame_fetch) < INGAME_REFRESH
-            )
-            if reuse:
-                state.agent_uuid = self.state.agent_uuid
-                state.kills   = self.state.kills
-                state.deaths  = self.state.deaths
-                state.assists = self.state.assists
+        # Gerçek oyun fazını GLZ uçlarından doğrula (presence gecikebilir).
+        # Sadece maça yakınken sorgula: presence pregame/ingame derse ya da
+        # bir matchMap atanmışsa. Saf ana menüde gereksiz çağrı yapma.
+        near_match = state.session_state in ("ingame", "pregame") or bool(state.map_path)
+        if near_match:
+            cache_ok = (now - self._last_ingame_fetch) < INGAME_REFRESH
+            if cache_ok:
+                if self.state.session_state in ("ingame", "pregame"):
+                    state.session_state = self.state.session_state
+                    state.agent_uuid = self.state.agent_uuid or state.agent_uuid
             else:
-                info = self._api.current_ingame_info(state.session_state)
-                if info:
-                    state.agent_uuid = info.get("agent") or self.state.agent_uuid
-                    state.kills      = info.get("kills",   0)
-                    state.deaths     = info.get("deaths",  0)
-                    state.assists    = info.get("assists", 0)
-                    self._last_ingame_fetch = now
-                elif self.state.agent_uuid:
+                self._last_ingame_fetch = now
+                phase = self._api.match_phase()
+                if phase:
+                    state.session_state = phase["phase"]
+                    state.agent_uuid = phase.get("agent") or self.state.agent_uuid
+                elif state.session_state in ("ingame", "pregame") and self.state.agent_uuid:
                     state.agent_uuid = self.state.agent_uuid
-                    state.kills      = self.state.kills
-                    state.deaths     = self.state.deaths
-                    state.assists    = self.state.assists
 
         if state.competitive_tier > 0:
             if self.state.rr is not None and (now - self._last_mmr_fetch) < MMR_REFRESH:
