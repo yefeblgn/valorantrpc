@@ -86,7 +86,7 @@ def _menu(state: GameState, settings, content: Content, language: str) -> dict:
                 presence["small_image"] = icon
                 presence["small_text"] = content.mode_name(state.queue_id)
     else:
-        icon = content.mode_icon_unique(state.queue_id)
+        icon = content.mode_icon(state.queue_id)
         if icon:
             presence["small_image"] = icon
             presence["small_text"] = content.mode_name(state.queue_id)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import logging
 import threading
+import sys
 import webbrowser
 
 import customtkinter as ctk
@@ -46,7 +47,7 @@ class UpdateSplash(ctk.CTkToplevel):
         self.configure(fg_color=BG)
         self.resizable(False, False)
 
-        w, h = 240, 320
+        w, h = 240, 330
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
 
@@ -68,11 +69,29 @@ class UpdateSplash(ctk.CTkToplevel):
         self.pct_lbl = ctk.CTkLabel(self, text="0%", font=_f(11, True), text_color=MUTED)
         self.pct_lbl.pack()
 
+        self.details_lbl = ctk.CTkLabel(self, text="", font=_f(10), text_color=MUTED)
+        self.details_lbl.pack(pady=(2, 0))
+
         self.update_idletasks()
 
-    def set_progress(self, progress: float) -> None:
+    def set_progress_details(self, progress: float, downloaded: int, total_size: int, speed: float) -> None:
         self.pbar.set(progress)
         self.pct_lbl.configure(text=f"{int(progress * 100)}%")
+
+        dl_mb = downloaded / 1024 / 1024
+        tot_mb = total_size / 1024 / 1024
+
+        remaining_str = ""
+        if speed > 0 and total_size > downloaded:
+            rem_sec = (total_size - downloaded) / speed
+            if rem_sec < 60:
+                remaining_str = f" ({int(rem_sec)}s {t(self.language, 'remaining')})"
+            else:
+                rem_min = int(rem_sec // 60)
+                rem_sec_left = int(rem_sec % 60)
+                remaining_str = f" ({rem_min}m {rem_sec_left}s {t(self.language, 'remaining')})"
+
+        self.details_lbl.configure(text=f"{dl_mb:.1f} MB / {tot_mb:.1f} MB{remaining_str}")
         self.update_idletasks()
 
 
@@ -103,18 +122,20 @@ class Panel(ctk.CTk):
 
     def _snap_br(self) -> None:
         self.update_idletasks()
-        h = self.winfo_reqheight()
+        content_h = self.body._parent_frame.winfo_reqheight() + 42 + 10
+        h = min(content_h, 580)
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         self.geometry(f"{W}x{h}+{sw - W - 14}+{sh - h - 54}")
 
     def _resize_to_fit(self) -> None:
         self.update_idletasks()
-        req_h = self.winfo_reqheight()
-        if req_h > 0 and self.winfo_height() != req_h:
+        content_h = self.body._parent_frame.winfo_reqheight() + 42 + 10
+        h = min(content_h, 580)
+        if h > 0 and self.winfo_height() != h:
             sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
             x = sw - W - 14
-            y = sh - req_h - 54
-            self.geometry(f"{W}x{req_h}+{x}+{y}")
+            y = sh - h - 54
+            self.geometry(f"{W}x{h}+{x}+{y}")
 
     def _build(self) -> None:
         title = ctk.CTkFrame(self, fg_color=BG_TITLE, height=42, corner_radius=0)
@@ -142,7 +163,11 @@ class Panel(ctk.CTk):
             text_color="#888", font=_f(12), command=self.hide,
         ).pack(side="right")
 
-        body = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
+        self.body = body = ctk.CTkScrollableFrame(
+            self, fg_color=BG, corner_radius=0,
+            scrollbar_button_color=DIM, scrollbar_button_hover_color=MUTED,
+            scrollbar_fg_color="transparent"
+        )
         body.pack(fill="both", expand=True)
 
         self.update_banner = ctk.CTkFrame(body, fg_color="#d09000", corner_radius=8)
@@ -304,6 +329,9 @@ class Panel(ctk.CTk):
     def _start_update(self) -> None:
         if self.updater.download_started:
             return
+        if not getattr(sys, "frozen", False):
+            webbrowser.open(self.updater.download_url)
+            return
         self.withdraw()
         self.splash = UpdateSplash(self, self.settings.language)
         self.updater.start_download_and_install(
@@ -311,9 +339,9 @@ class Panel(ctk.CTk):
             on_done=self._on_update_done
         )
 
-    def _on_update_progress(self, progress: float) -> None:
+    def _on_update_progress(self, progress: float, downloaded: int = 0, total_size: int = 0, speed: float = 0.0) -> None:
         if hasattr(self, "splash") and self.splash:
-            self.splash.set_progress(progress)
+            self.splash.set_progress_details(progress, downloaded, total_size, speed)
         percent = int(progress * 100)
         lang = self.settings.language
         self.update_lbl.configure(text=f"{t(lang, 'updating')}... {percent}%")

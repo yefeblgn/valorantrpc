@@ -44,6 +44,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "no_player": "Oyuncu bilgisi yok",
         "updating": "Güncelleniyor",
         "update_failed": "Güncelleme başarısız. Tekrar dene.",
+        "remaining": "kaldı",
         "notification_title": "ValorantRPC Başlatıldı",
         "notification_desc": "Uygulama arka planda çalışıyor. Discord RPC aktif.",
         # --- Presence (Discord'da görünür) ---
@@ -89,6 +90,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "no_player": "No player info",
         "updating": "Updating",
         "update_failed": "Update failed. Try again.",
+        "remaining": "left",
         "notification_title": "ValorantRPC Started",
         "notification_desc": "Application is running in background. Discord RPC is active.",
         "p_in_menu": "In Menu",

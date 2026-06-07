@@ -73,7 +73,8 @@ class Updater:
                     return
 
                 exe_path = Path(sys.executable)
-                new_exe_path = exe_path.with_name("ValorantRPC.exe.new")
+                temp_dir = Path(tempfile.gettempdir())
+                new_exe_path = temp_dir / "ValorantRPC_new.exe"
 
                 r = requests.get(self.download_url, stream=True, headers={"User-Agent": "ValorantRPC-Updater"}, timeout=30)
                 if r.status_code != 200:
@@ -81,16 +82,24 @@ class Updater:
 
                 total_size = int(r.headers.get("content-length", 0))
                 downloaded = 0
-
+                last_percent = -1
+                import time
+                start_time = time.time()
+ 
                 with open(new_exe_path, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
+                    for chunk in r.iter_content(chunk_size=16384):
                         if chunk:
                             f.write(chunk)
                             downloaded += len(chunk)
                             if total_size > 0:
-                                self.download_progress = downloaded / total_size
-                                if on_progress:
-                                    on_progress(self.download_progress)
+                                percent = int((downloaded / total_size) * 100)
+                                if percent != last_percent:
+                                    last_percent = percent
+                                    self.download_progress = downloaded / total_size
+                                    elapsed = time.time() - start_time
+                                    speed = downloaded / elapsed if elapsed > 0 else 0.0
+                                    if on_progress:
+                                        on_progress(self.download_progress, downloaded, total_size, speed)
 
                 self.download_success = True
                 if on_done:
@@ -115,7 +124,7 @@ if exist "{current_exe}" (
     timeout /t 1 /nobreak > nul
     goto loop
 )
-ren "{new_exe}" "{current_exe.name}"
+move /y "{new_exe}" "{current_exe}"
 start "" "{current_exe}"
 del "%~f0"
 """
