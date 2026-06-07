@@ -13,6 +13,7 @@ from version import __version__
 from ..constants import GITHUB_URL
 from ..i18n import t
 from . import icons
+from ..core.updater import Updater
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,45 @@ def _f(size: int = 13, bold: bool = False) -> ctk.CTkFont:
     return ctk.CTkFont(family=FONT, size=size, weight="bold" if bold else "normal")
 
 
+class UpdateSplash(ctk.CTkToplevel):
+    def __init__(self, parent, language: str) -> None:
+        super().__init__(parent)
+        self.language = language
+        self.overrideredirect(True)
+        self.wm_attributes("-topmost", True)
+        self.configure(fg_color=BG)
+        self.resizable(False, False)
+
+        w, h = 240, 320
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
+
+        ai = icons.app_icon_image().resize((80, 80), Image.LANCZOS)
+        self._ai = ctk.CTkImage(light_image=ai, dark_image=ai, size=(80, 80))
+        self.logo_lbl = ctk.CTkLabel(self, image=self._ai, text="")
+        self.logo_lbl.pack(pady=(40, 10))
+
+        self.title_lbl = ctk.CTkLabel(self, text="ValorantRPC", font=_f(16, True), text_color="white")
+        self.title_lbl.pack()
+
+        self.status_lbl = ctk.CTkLabel(self, text=f"{t(language, 'updating')}...", font=_f(12), text_color=MUTED)
+        self.status_lbl.pack(pady=(20, 10))
+
+        self.pbar = ctk.CTkProgressBar(self, width=180, height=4, progress_color=ACCENT, fg_color=BADGE)
+        self.pbar.set(0.0)
+        self.pbar.pack(pady=5)
+
+        self.pct_lbl = ctk.CTkLabel(self, text="0%", font=_f(11, True), text_color=MUTED)
+        self.pct_lbl.pack()
+
+        self.update_idletasks()
+
+    def set_progress(self, progress: float) -> None:
+        self.pbar.set(progress)
+        self.pct_lbl.configure(text=f"{int(progress * 100)}%")
+        self.update_idletasks()
+
+
 class Panel(ctk.CTk):
     def __init__(self, settings, poller, on_setting_change, on_quit) -> None:
         super().__init__()
@@ -44,6 +84,7 @@ class Panel(ctk.CTk):
         self.content = poller.content
         self.on_setting_change = on_setting_change
         self._on_quit = on_quit
+        self.updater = Updater()
         self._img_cache: dict[str, ctk.CTkImage] = {}
         self._agent_name_to_uuid: dict[str, str] = {}
         self._dx = self._dy = 0
@@ -57,6 +98,7 @@ class Panel(ctk.CTk):
         self._build()
         self._retext()
         self._load_agents_list()
+        self._check_updates()
         self._refresh_loop()
 
     def _snap_br(self) -> None:
@@ -92,6 +134,12 @@ class Panel(ctk.CTk):
 
         body = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
         body.pack(fill="both", expand=True)
+
+        self.update_banner = ctk.CTkFrame(body, fg_color="#d09000", corner_radius=8)
+        self.update_lbl = ctk.CTkLabel(self.update_banner, text="", font=_f(11, True), text_color="black", cursor="hand2")
+        self.update_lbl.pack(fill="x", padx=10, pady=6)
+        self.update_banner.bind("<Button-1>", lambda e: self._start_update())
+        self.update_lbl.bind("<Button-1>", lambda e: self._start_update())
 
         def card(**kw) -> ctk.CTkFrame:
             f = ctk.CTkFrame(body, fg_color=BG_CARD, corner_radius=10, **kw)
@@ -231,6 +279,49 @@ class Panel(ctk.CTk):
             command=lambda: webbrowser.open(GITHUB_URL),
         ).pack(side="right")
 
+    def _check_updates(self) -> None:
+        def work():
+            if self.updater.check_for_updates():
+                self.after(0, self._show_update_banner)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _show_update_banner(self) -> None:
+        lang = self.settings.language
+        txt = f"{t(lang, 'update_available')} (v{self.updater.latest_version})"
+        self.update_lbl.configure(text=txt)
+        self.update_banner.pack(fill="x", padx=10, pady=(6, 0), before=self.banner.master)
+
+    def _start_update(self) -> None:
+        if self.updater.download_started:
+            return
+        self.withdraw()
+        self.splash = UpdateSplash(self, self.settings.language)
+        self.updater.start_download_and_install(
+            on_progress=self._on_update_progress,
+            on_done=self._on_update_done
+        )
+
+    def _on_update_progress(self, progress: float) -> None:
+        if hasattr(self, "splash") and self.splash:
+            self.splash.set_progress(progress)
+        percent = int(progress * 100)
+        lang = self.settings.language
+        self.update_lbl.configure(text=f"{t(lang, 'updating')}... {percent}%")
+
+    def _on_update_done(self, success: bool) -> None:
+        if hasattr(self, "splash") and self.splash:
+            try:
+                self.splash.destroy()
+            except Exception:
+                pass
+            self.splash = None
+        if not success:
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+            lang = self.settings.language
+            self.update_lbl.configure(text=t(lang, "update_failed"))
+
     def _ds(self, e):
         self._dx, self._dy = e.x_root - self.winfo_x(), e.y_root - self.winfo_y()
 
@@ -282,6 +373,9 @@ class Panel(ctk.CTk):
         self.al_agent_lbl.configure(text=t(lang, "select_agent"))
         for key, cb in self._chk.items():
             cb.configure(text=t(lang, key))
+        if self.updater.update_available:
+            txt = f"{t(lang, 'update_available')} (v{self.updater.latest_version})"
+            self.update_lbl.configure(text=txt)
 
     def _toggle_rpc(self):
         self.settings.rpc_enabled = bool(self.rpc_sw.get())

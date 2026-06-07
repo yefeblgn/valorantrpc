@@ -42,6 +42,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "tray_quit": "Çıkış",
         "update_available": "Güncelleme mevcut",
         "no_player": "Oyuncu bilgisi yok",
+        "updating": "Güncelleniyor",
+        "update_failed": "Güncelleme başarısız. Tekrar dene.",
         "notification_title": "ValorantRPC Başlatıldı",
         "notification_desc": "Uygulama arka planda çalışıyor. Discord RPC aktif.",
         # --- Presence (Discord'da görünür) ---
@@ -85,6 +87,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "tray_quit": "Quit",
         "update_available": "Update available",
         "no_player": "No player info",
+        "updating": "Updating",
+        "update_failed": "Update failed. Try again.",
         "notification_title": "ValorantRPC Started",
         "notification_desc": "Application is running in background. Discord RPC is active.",
         "p_in_menu": "In Menu",
