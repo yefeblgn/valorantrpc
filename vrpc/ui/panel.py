@@ -122,15 +122,15 @@ class Panel(ctk.CTk):
 
     def _snap_br(self) -> None:
         self.update_idletasks()
-        content_h = self.body._parent_frame.winfo_reqheight() + 42 + 10
-        h = min(content_h, 580)
+        content_h = self.body.winfo_reqheight() + 42 + 22
+        h = min(content_h, 600)
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         self.geometry(f"{W}x{h}+{sw - W - 14}+{sh - h - 54}")
 
     def _resize_to_fit(self) -> None:
         self.update_idletasks()
-        content_h = self.body._parent_frame.winfo_reqheight() + 42 + 10
-        h = min(content_h, 580)
+        content_h = self.body.winfo_reqheight() + 42 + 22
+        h = min(content_h, 600)
         if h > 0 and self.winfo_height() != h:
             sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
             x = sw - W - 14
