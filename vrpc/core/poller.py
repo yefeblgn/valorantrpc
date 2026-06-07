@@ -41,6 +41,7 @@ class Poller:
         self._last_ingame_fetch = 0.0
         self._last_mmr_fetch = 0.0
         self._error_streak = 0
+        self._last_autolocked_match = None
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -124,6 +125,9 @@ class Poller:
         self._ensure_connection()
         self.content.set_language(self.settings.language)
 
+        if self.settings.autolock_enabled and self.settings.autolock_agent_uuid:
+            self._handle_autolock()
+
         private = self._api_self_presence()
         if private is None:
             return
@@ -150,6 +154,10 @@ class Poller:
                 if phase:
                     state.session_state = phase["phase"]
                     state.agent_uuid = phase.get("agent") or self.state.agent_uuid
+                    if "queue_id" in phase:
+                        state.queue_id = phase["queue_id"]
+                    if "provisioning_flow" in phase:
+                        state.provisioning_flow = phase["provisioning_flow"]
                 elif state.session_state in ("ingame", "pregame") and self.state.agent_uuid:
                     state.agent_uuid = self.state.agent_uuid
 
@@ -208,3 +216,76 @@ class Poller:
 
     def force_refresh(self) -> None:
         self._last_signature = None
+
+    def _handle_autolock(self) -> None:
+        if not (self._api and self._auth and self._auth.is_valid()):
+            return
+        logger.info("[Autolock] Checking autolock...")
+        try:
+            r = self._api._remote_get(f"{self._api.glz}/pregame/v1/players/{self._auth.puuid}")
+            logger.info("[Autolock] Pregame players API status: %d", r.status_code)
+            if r.status_code != 200:
+                self._last_autolocked_match = None
+                return
+            data = r.json()
+            match_id = data.get("MatchID")
+            logger.info("[Autolock] Found MatchID: %s", match_id)
+            if not match_id:
+                self._last_autolocked_match = None
+                return
+
+            if self._last_autolocked_match == match_id:
+                logger.info("[Autolock] Match %s already processed. Skipping.", match_id)
+                return
+
+            rm = self._api._remote_get(f"{self._api.glz}/pregame/v1/matches/{match_id}")
+            logger.info("[Autolock] Pregame match details status: %d", rm.status_code)
+            if rm.status_code != 200:
+                return
+            match_data = rm.json()
+
+            queue_id = (match_data.get("QueueID") or "").lower()
+            prov_flow = (match_data.get("ProvisioningFlowID") or "").lower()
+            logger.info("[Autolock] QueueID: '%s', ProvFlow: '%s'", queue_id, prov_flow)
+
+            logger.info("Pregame match detected (MatchID: %s)", match_id)
+
+            teams = match_data.get("Teams") or []
+            ally = match_data.get("AllyTeam")
+            if ally:
+                teams = teams + [ally]
+
+            my_player = None
+            for team in teams:
+                for player in team.get("Players", []):
+                    if player.get("Subject") == self._auth.puuid:
+                        my_player = player
+                        break
+                if my_player:
+                    break
+
+            if not my_player:
+                logger.info("[Autolock] Player PUUID not found in pregame match players!")
+                return
+
+            char_state = my_player.get("CharacterSelectionState") or ""
+            current_char = my_player.get("CharacterID") or ""
+            target_agent = self.settings.autolock_agent_uuid
+            logger.info("[Autolock] LockState: '%s', Hovered: '%s', Target: '%s'", char_state, current_char, target_agent)
+
+            agent_name = self.content.agent_name(target_agent) or target_agent
+            if char_state == "locked" and current_char.lower() == target_agent.lower():
+                logger.info("Agent %s is already locked in this match.", agent_name)
+                self._last_autolocked_match = match_id
+                return
+
+            logger.info("Attempting to auto-lock agent %s in custom match %s", agent_name, match_id)
+            self._api.select_agent(match_id, target_agent)
+            ok = self._api.lock_agent(match_id, target_agent)
+            if ok:
+                logger.info("Successfully locked agent %s", agent_name)
+                self._last_autolocked_match = match_id
+            else:
+                logger.warning("Failed to lock agent %s (Riot API returned error)", agent_name)
+        except Exception as e:
+            logger.error("[Autolock] Error during autolock tick: %s", e)

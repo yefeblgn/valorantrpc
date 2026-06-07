@@ -26,7 +26,7 @@ BADGE    = "#1e2235"
 MUTED    = "#6a6e82"
 DIM      = "#3e4155"
 FONT     = "Segoe UI"
-W, H     = 300, 520
+W, H     = 300, 680
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -45,6 +45,7 @@ class Panel(ctk.CTk):
         self.on_setting_change = on_setting_change
         self._on_quit = on_quit
         self._img_cache: dict[str, ctk.CTkImage] = {}
+        self._agent_name_to_uuid: dict[str, str] = {}
         self._dx = self._dy = 0
 
         self.overrideredirect(True)
@@ -55,6 +56,7 @@ class Panel(ctk.CTk):
 
         self._build()
         self._retext()
+        self._load_agents_list()
         self._refresh_loop()
 
     def _snap_br(self) -> None:
@@ -193,6 +195,32 @@ class Panel(ctk.CTk):
             cb.grid(row=i // 2, column=i % 2, sticky="w", padx=2, pady=2)
             self._chk[key] = cb
 
+        al_card = card()
+        al_row = ctk.CTkFrame(al_card, fg_color="transparent")
+        al_row.pack(fill="x", padx=12, pady=(8, 4))
+        self.al_sw = ctk.CTkSwitch(al_row, text="", progress_color=ACCENT, width=38, height=20, command=self._toggle_al)
+        self.al_sw.pack(side="left")
+        self.al_lbl = ctk.CTkLabel(al_row, text="", font=_f(12))
+        self.al_lbl.pack(side="left", padx=(8, 0))
+        if self.settings.autolock_enabled:
+            self.al_sw.select()
+
+        ctk.CTkFrame(al_card, height=1, fg_color=SEP).pack(fill="x", padx=12)
+
+        al_sel_row = ctk.CTkFrame(al_card, fg_color="transparent")
+        al_sel_row.pack(fill="x", padx=12, pady=(6, 8))
+        self.al_agent_lbl = ctk.CTkLabel(al_sel_row, text="", font=_f(12))
+        self.al_agent_lbl.pack(side="left")
+
+        self.al_opt = ctk.CTkOptionMenu(
+            al_sel_row, values=["Loading..."], command=self._set_al_agent,
+            fg_color=BADGE, button_color=ACCENT, button_hover_color=ACCENT_H,
+            dropdown_fg_color=BG_CARD, dropdown_hover_color=BADGE,
+            dropdown_text_color="white", text_color="white", font=_f(11), dropdown_font=_f(11),
+            width=140
+        )
+        self.al_opt.pack(side="right")
+
         ft = ctk.CTkFrame(body, fg_color="transparent")
         ft.pack(fill="x", padx=10, pady=(0, 10))
         self.ver_lbl = ctk.CTkLabel(ft, text=f"v{__version__}", text_color=DIM, font=_f(10))
@@ -209,11 +237,49 @@ class Panel(ctk.CTk):
     def _dm(self, e):
         self.geometry(f"+{e.x_root - self._dx}+{e.y_root - self._dy}")
 
+    def _toggle_al(self):
+        self.settings.autolock_enabled = bool(self.al_sw.get())
+        self.settings.save()
+        self.on_setting_change("autolock_enabled")
+
+    def _set_al_agent(self, val: str):
+        uuid = self._agent_name_to_uuid.get(val, "")
+        if uuid:
+            self.settings.autolock_agent_uuid = uuid
+            self.settings.save()
+            self.on_setting_change("autolock_agent_uuid")
+
+    def _load_agents_list(self) -> None:
+        def work():
+            try:
+                agents = self.content.playable_agents()
+                if agents:
+                    self._agent_name_to_uuid = {name: uuid for uuid, name in agents}
+                    names = [name for _, name in agents]
+                    self.after(0, lambda: self._update_al_options(names))
+            except Exception as e:
+                logger.debug("Load agents list failed: %s", e)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _update_al_options(self, names: list[str]) -> None:
+        self.al_opt.configure(values=names)
+        current_uuid = self.settings.autolock_agent_uuid
+        current_name = ""
+        if current_uuid:
+            current_name = self.content.agent_name(current_uuid)
+        if current_name in names:
+            self.al_opt.set(current_name)
+        elif names:
+            self.al_opt.set(names[0])
+            self._set_al_agent(names[0])
+
     def _retext(self) -> None:
         lang = self.settings.language
         self.rpc_lbl.configure(text=t(lang, "rpc_enabled"))
         self.lang_cap.configure(text=t(lang, "language"))
         self.auto_lbl.configure(text=t(lang, "autostart"))
+        self.al_lbl.configure(text=t(lang, "autolock_enabled"))
+        self.al_agent_lbl.configure(text=t(lang, "select_agent"))
         for key, cb in self._chk.items():
             cb.configure(text=t(lang, key))
 
@@ -229,6 +295,7 @@ class Panel(ctk.CTk):
         self.settings.save()
         self.content.set_language(lang)
         self._retext()
+        self._load_agents_list()
         self.on_setting_change("language")
 
     def _toggle_auto(self):
@@ -314,8 +381,8 @@ class Panel(ctk.CTk):
             row.pack_forget()
         items = []
         if state.queue_id or state.session_state != "menus":
-            items.append(("mode", self.content.mode_icon(state.queue_id), (20, 20),
-                          self.content.mode_name(state.queue_id)))
+            mode_name = t(lang, "custom") if state.is_custom else self.content.mode_name(state.queue_id)
+            items.append(("mode", self.content.mode_icon(state.queue_id), (20, 20), mode_name))
         mn, _ = self.content.map_info(state.map_path)
         if mn:
             items.append(("map", None, None, f"{t(lang,'map')}: {mn}"))
@@ -344,10 +411,12 @@ class Panel(ctk.CTk):
     def _sync(self) -> None:
         (self.rpc_sw.select if self.settings.rpc_enabled else self.rpc_sw.deselect)()
         (self.auto_sw.select if self.settings.autostart else self.auto_sw.deselect)()
+        (self.al_sw.select if self.settings.autolock_enabled else self.al_sw.deselect)()
         self.lang_seg.set("TR" if self.settings.language == "tr" else "EN")
         for key, cb in self._chk.items():
             (cb.select if getattr(self.settings, key) else cb.deselect)()
         self._retext()
+        self._load_agents_list()
 
     def show(self) -> None:
         self.after(0, self._do_show)

@@ -28,6 +28,27 @@ class RiotApi:
     def _remote_get(self, url: str, timeout: float = 6.0):
         return self.auth.session.get(url, headers=self.auth.pd_glz_headers(), timeout=timeout)
 
+    def _remote_post(self, url: str, data=None, timeout: float = 6.0):
+        return self.auth.session.post(url, json=data, headers=self.auth.pd_glz_headers(), timeout=timeout)
+
+    def select_agent(self, match_id: str, agent_uuid: str) -> bool:
+        url = f"{self.glz}/pregame/v1/matches/{match_id}/select/{agent_uuid}"
+        try:
+            r = self._remote_post(url)
+            return r.status_code == 200
+        except Exception as e:
+            logger.debug("select_agent error: %s", e)
+            return False
+
+    def lock_agent(self, match_id: str, agent_uuid: str) -> bool:
+        url = f"{self.glz}/pregame/v1/matches/{match_id}/lock/{agent_uuid}"
+        try:
+            r = self._remote_post(url)
+            return r.status_code == 200
+        except Exception as e:
+            logger.debug("lock_agent error: %s", e)
+            return False
+
     def self_presence(self) -> dict | None:
         try:
             r = self.auth.local_get("/chat/v4/presences")
@@ -96,11 +117,18 @@ class RiotApi:
         ally = data.get("AllyTeam")
         if ally:
             teams = teams + [ally]
+        agent_id = None
         for team in teams:
             for player in team.get("Players", []):
                 if player.get("Subject") == self.auth.puuid:
-                    return {"agent": player.get("CharacterID") or None}
-        return {"agent": None}
+                    agent_id = player.get("CharacterID") or None
+                    break
+        return {
+            "agent": agent_id,
+            "match_id": match_id,
+            "queue_id": data.get("QueueID", ""),
+            "provisioning_flow": data.get("ProvisioningFlowID", ""),
+        }
 
     def mmr(self) -> tuple[int, int] | None:
         try:

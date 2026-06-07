@@ -36,6 +36,10 @@ class App:
     def run(self) -> None:
         self.poller.start()
         self.tray.run()
+        
+        lang = self.settings.language
+        self.tray.notify(t(lang, "notification_desc"), t(lang, "notification_title"))
+        
         try:
             self.panel.mainloop()
         finally:

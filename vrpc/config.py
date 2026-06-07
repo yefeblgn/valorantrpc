@@ -22,6 +22,8 @@ class Settings:
     show_party: bool = True
     show_elapsed: bool = True
     language_detected: bool = False
+    autolock_enabled: bool = False
+    autolock_agent_uuid: str = ""
     _dirty_fields: set = field(default_factory=set, repr=False, compare=False)
 
     @classmethod
@@ -33,6 +35,7 @@ class Settings:
                 for key in (
                     "language", "rpc_enabled", "autostart", "show_rank",
                     "show_level", "show_party", "show_elapsed", "language_detected",
+                    "autolock_enabled", "autolock_agent_uuid",
                 ):
                     if key in data:
                         setattr(s, key, data[key])

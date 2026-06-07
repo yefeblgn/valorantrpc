@@ -105,6 +105,10 @@ class Content:
                 self._agents[a["uuid"].lower()] = a.get("displayName", "")
         return self._agents
 
+    def playable_agents(self) -> list[tuple[str, str]]:
+        agents_dict = self._ensure_agents()
+        return sorted(agents_dict.items(), key=lambda x: x[1])
+
     def agent_name(self, uuid: str | None) -> str:
         if not uuid:
             return ""

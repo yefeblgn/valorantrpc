@@ -54,6 +54,12 @@ class Tray:
         except Exception:
             pass
 
+    def notify(self, message: str, title: str | None = None) -> None:
+        try:
+            self.icon.notify(message, title or APP_NAME)
+        except Exception as e:
+            logger.debug("Tray notification error: %s", e)
+
     def update(self, active: bool, status_text: str) -> None:
         try:
             if active != self._active:
