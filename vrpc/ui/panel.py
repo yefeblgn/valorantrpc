@@ -225,7 +225,9 @@ class Panel(ctk.CTk):
         ctrl.pack(fill="x", padx=10, pady=(0, 6))
 
         def sep():
-            ctk.CTkFrame(ctrl, height=1, fg_color=SEP).pack(fill="x", padx=12)
+            f = ctk.CTkFrame(ctrl, height=1, fg_color=SEP)
+            f.pack(fill="x", padx=12)
+            return f
 
         def sw_row(pady_=(8, 4)) -> tuple:
             r = ctk.CTkFrame(ctrl, fg_color="transparent")

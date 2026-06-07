@@ -24,20 +24,9 @@ def build(state: GameState, settings, content: Content, language: str, start_ts:
     if settings.show_elapsed:
         presence["start"] = start_ts
 
-    # "Lobiye Katıl" daveti — Discord '+' menüsünden kanala gönderilebilir.
-    # join secret + party (içinde yer olacak şekilde: current < max) gerekir.
-    # Discord secret + buttons'ı AYNI ANDA kabul etmediği için davet aktifken
-    # GitHub butonu gönderilmez (ikisi birlikte tüm RPC'yi kırar).
-    if state.card_id:
-        cur = state.party_size if state.party_size > 0 else 1
-        mx = state.party_max if state.party_max > cur else cur + 1
-        presence["party_id"] = f"vrpc_{state.card_id}"
-        presence["party_size"] = [cur, mx]
-        presence["join"] = f"vrpc_join_{state.card_id}"
-    else:
-        if settings.show_party and state.party_size > 0:
-            presence["party_size"] = [state.party_size, state.party_max]
-        presence["buttons"] = [{"label": t(language, "github"), "url": GITHUB_URL}]
+    if settings.show_party and state.party_size > 0:
+        presence["party_size"] = [state.party_size, state.party_max]
+    presence["buttons"] = [{"label": "Made by ❤️ yefeblgn", "url": GITHUB_URL}]
 
     return presence
 
