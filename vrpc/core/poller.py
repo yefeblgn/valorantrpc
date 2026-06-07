@@ -94,10 +94,13 @@ class Poller:
             self.content.set_language(lang)
 
         name, tag = detect_player(auth)
+        was_connected = self.valorant_connected
         with self._lock:
             self.player_name, self.player_tag = name or self.player_name, tag or self.player_tag
             self.valorant_connected = True
         logger.info("Riot connected: %s#%s [%s/%s]", name, tag, region, shard)
+        if not was_connected:
+            self._notify()
         return True
 
     def _run(self) -> None:

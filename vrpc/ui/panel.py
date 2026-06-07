@@ -103,8 +103,18 @@ class Panel(ctk.CTk):
 
     def _snap_br(self) -> None:
         self.update_idletasks()
+        h = self.winfo_reqheight()
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        self.geometry(f"{W}x{H}+{sw - W - 14}+{sh - H - 54}")
+        self.geometry(f"{W}x{h}+{sw - W - 14}+{sh - h - 54}")
+
+    def _resize_to_fit(self) -> None:
+        self.update_idletasks()
+        req_h = self.winfo_reqheight()
+        if req_h > 0 and self.winfo_height() != req_h:
+            sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+            x = sw - W - 14
+            y = sh - req_h - 54
+            self.geometry(f"{W}x{req_h}+{x}+{y}")
 
     def _build(self) -> None:
         title = ctk.CTkFrame(self, fg_color=BG_TITLE, height=42, corner_radius=0)
@@ -226,25 +236,25 @@ class Panel(ctk.CTk):
         if self.settings.autostart:
             self.auto_sw.select()
 
-        sep()
+        self.sep3 = sep()
 
-        og = ctk.CTkFrame(ctrl, fg_color="transparent")
-        og.pack(fill="x", padx=12, pady=(5, 10))
-        og.columnconfigure(0, weight=1)
-        og.columnconfigure(1, weight=1)
+        self.og = ctk.CTkFrame(ctrl, fg_color="transparent")
+        self.og.pack(fill="x", padx=12, pady=(5, 10))
+        self.og.columnconfigure(0, weight=1)
+        self.og.columnconfigure(1, weight=1)
         self._chk: dict[str, ctk.CTkCheckBox] = {}
         for i, key in enumerate(("show_rank", "show_level", "show_party", "show_elapsed")):
             var = ctk.BooleanVar(value=getattr(self.settings, key))
             cb = ctk.CTkCheckBox(
-                og, text="", variable=var, checkbox_width=17, checkbox_height=17,
+                self.og, text="", variable=var, checkbox_width=17, checkbox_height=17,
                 fg_color=ACCENT, hover_color=ACCENT_H, border_color="#2a2e42",
                 command=lambda k=key, v=var: self._toggle_show(k, v), font=_f(11),
             )
             cb.grid(row=i // 2, column=i % 2, sticky="w", padx=2, pady=2)
             self._chk[key] = cb
 
-        al_card = card()
-        al_row = ctk.CTkFrame(al_card, fg_color="transparent")
+        self.al_card = card()
+        al_row = ctk.CTkFrame(self.al_card, fg_color="transparent")
         al_row.pack(fill="x", padx=12, pady=(8, 4))
         self.al_sw = ctk.CTkSwitch(al_row, text="", progress_color=ACCENT, width=38, height=20, command=self._toggle_al)
         self.al_sw.pack(side="left")
@@ -253,9 +263,9 @@ class Panel(ctk.CTk):
         if self.settings.autolock_enabled:
             self.al_sw.select()
 
-        ctk.CTkFrame(al_card, height=1, fg_color=SEP).pack(fill="x", padx=12)
+        ctk.CTkFrame(self.al_card, height=1, fg_color=SEP).pack(fill="x", padx=12)
 
-        al_sel_row = ctk.CTkFrame(al_card, fg_color="transparent")
+        al_sel_row = ctk.CTkFrame(self.al_card, fg_color="transparent")
         al_sel_row.pack(fill="x", padx=12, pady=(6, 8))
         self.al_agent_lbl = ctk.CTkLabel(al_sel_row, text="", font=_f(12))
         self.al_agent_lbl.pack(side="left")
@@ -269,8 +279,8 @@ class Panel(ctk.CTk):
         )
         self.al_opt.pack(side="right")
 
-        ft = ctk.CTkFrame(body, fg_color="transparent")
-        ft.pack(fill="x", padx=10, pady=(0, 10))
+        self.ft = ft = ctk.CTkFrame(body, fg_color="transparent")
+        self.ft.pack(fill="x", padx=10, pady=(0, 10))
         self.ver_lbl = ctk.CTkLabel(ft, text=f"v{__version__}", text_color=DIM, font=_f(10))
         self.ver_lbl.pack(side="left")
         ctk.CTkButton(
@@ -376,6 +386,7 @@ class Panel(ctk.CTk):
         if self.updater.update_available:
             txt = f"{t(lang, 'update_available')} (v{self.updater.latest_version})"
             self.update_lbl.configure(text=txt)
+        self._resize_to_fit()
 
     def _toggle_rpc(self):
         self.settings.rpc_enabled = bool(self.rpc_sw.get())
@@ -450,21 +461,31 @@ class Panel(ctk.CTk):
             self.rank_lbl.configure(text=t(lang, "unranked"))
             self.rank_icon.configure(image=None, text="")
 
-        if not snap["valorant"]:
+        is_active = snap["valorant"] and state.session_state != "idle"
+
+        if not is_active:
             self.dot.configure(text_color="#383b50")
             self.status_lbl.configure(text=t(lang, "status_idle"))
             self._hide_rows()
-            return
+            self.sep3.pack_forget()
+            self.og.pack_forget()
+            self.al_card.pack_forget()
+        else:
+            clr = {"menus": "#3ba55d", "pregame": "#faa61a", "ingame": ACCENT, "idle": "#383b50"}
+            key = {"menus": "status_menu", "pregame": "status_pregame",
+                   "ingame": "status_ingame", "idle": "status_idle"}
+            ss = state.session_state
+            dot_color = "#f0a500" if state.is_queuing else clr.get(ss, "#383b50")
+            status_text = t(lang, "queuing") if state.is_queuing else t(lang, key.get(ss, "status_menu"))
+            self.dot.configure(text_color=dot_color)
+            self.status_lbl.configure(text=status_text)
+            self._show_rows(state, lang)
 
-        clr = {"menus": "#3ba55d", "pregame": "#faa61a", "ingame": ACCENT, "idle": "#383b50"}
-        key = {"menus": "status_menu", "pregame": "status_pregame",
-               "ingame": "status_ingame", "idle": "status_idle"}
-        ss = state.session_state
-        dot_color = "#f0a500" if state.is_queuing else clr.get(ss, "#383b50")
-        status_text = t(lang, "queuing") if state.is_queuing else t(lang, key.get(ss, "status_menu"))
-        self.dot.configure(text_color=dot_color)
-        self.status_lbl.configure(text=status_text)
-        self._show_rows(state, lang)
+            self.sep3.pack(fill="x", padx=12)
+            self.og.pack(fill="x", padx=12, pady=(5, 10))
+            self.al_card.pack(fill="x", padx=10, pady=(0, 6), before=self.ft)
+
+        self._resize_to_fit()
 
     def _hide_rows(self) -> None:
         for row, _, _ in self._rows.values():

@@ -102,6 +102,7 @@ class App:
                 "ingame": "status_ingame",
             }.get(snap["state"].session_state, "status_menu"))
         self.tray.update(active=snap["valorant"], status_text=status)
+        self.panel.after(0, self.panel._refresh)
 
 
 def run() -> None:
