@@ -1,0 +1,41 @@
+appId: com.yefeblgn.valorantrpc
+productName: ValorantRPC
+copyright: Copyright © 2026 yefeblgn
+compression: maximum
+
+directories:
+  buildResources: buildResources
+  output: release
+
+files:
+  - out/**
+  - "!**/*.map"
+  - "!**/{.eslintrc,.prettierrc,tsconfig*.json}"
+
+extraResources:
+  - from: assets
+    to: assets
+
+win:
+  target:
+    - target: nsis
+    - target: portable
+  icon: buildResources/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ValorantRPC
+  deleteAppDataOnUninstall: false
+
+publish:
+  provider: github
+  owner: yefeblgn
+  repo: valorantrpc

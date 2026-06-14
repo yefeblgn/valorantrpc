@@ -1,85 +1,44 @@
-<div align="center">
+# ValorantRPC (v3.0)
 
-  <h1>ValorantRPC 2.0</h1>
+VALORANT oyun durumunu Discord profilinde göstermeni sağlayan, tamamen yerel çalışan bir Rich Presence uygulaması. Herhangi bir Riot API anahtarı veya giriş bilgisi gerektirmez; oyun verilerini doğrudan bilgisayarındaki yerel Riot Client servisinden okur.
 
-  <p>
-    <b>VALORANT durumunu Discord'a taşı — sıfır ayar, anahtar yok.</b>
-    <br />
-    Oynadığın ajan, harita, skor, rank ve modu Discord profilinde otomatik göster.
-  </p>
+Arayüzü mat OLED siyahı, VALORANT temalı renkler ve iOS benzeri liquid-glass (buzlu cam) butonlarla sıfırdan tasarladık.
 
-  <p>
-    <a href="https://github.com/yefeblgn/valorantrpc/issues">
-      <img src="https://img.shields.io/github/issues/yefeblgn/valorantrpc?style=for-the-badge&label=Hatalar&color=eb4034" alt="Issues">
-    </a>
-    <a href="https://github.com/yefeblgn/valorantrpc/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/yefeblgn/valorantrpc?style=for-the-badge&label=Lisans&color=f1c40f" alt="Lisans">
-    </a>
-  </p>
-</div>
+## 🚀 Özellikler
 
----
+* **Sıfır Ayar:** Riot kullanıcı adını, tagini, oynadığın modu ve rankını yerel Riot istemcisi üzerinden otomatik algılar.
+* **Tamamen Güvenli:** Hesabına dair hiçbir şifre veya hassas bilgi dışarıya gönderilmez. Uygulama sadece kendi bilgisayarındaki Riot lockfile dosyasını okur.
+* **Canlı Durum Takibi:** Lobide, ajan seçerken veya oyundayken (skor, harita, ajan, rank ve RR dahil) her şey anlık olarak Discord profiline yansır.
+* **Hafif Arayüz:** Kapat tuşuna bastığında arka plana (sistem tepsisine - tray) küçülür ve çalışmaya devam eder. Windows açılışında otomatik başlama seçeneği mevcuttur.
+* **Hızlı Asset Çözümü:** Ajan ve harita görsellerini dahili olarak tutmak yerine doğrudan Riot'un güncel CDN sunucusundan çeker. Bu sayede uygulamanın boyutu 220 MB'tan 78 MB seviyelerine inmiştir.
 
-## ✨ Öne Çıkanlar
+## 📦 Kurulum ve Geliştirme
 
-- 🔑 **Anahtarsız & sıfır ayar.** HenrikDev API yok. Riot adı, tag, bölge ve dil
-  doğrudan yerel Riot client'tan **otomatik** tespit edilir. Aç ve kullan.
-- 🛰️ **Tamamen yerel.** Veri yalnızca Riot'un kendi yerel API'sinden (lockfile +
-  entitlements + PD/GLZ) okunur. Şifren veya hesabın hiçbir dış servise gönderilmez.
-- 🎯 **Gerçek zamanlı.** Menü, ajan seçimi ve maç durumu (mod · harita · ajan · skor ·
-  parti · rank/RR) anlık olarak Discord'a yansır.
-- 🖼️ **Hep güncel içerik.** Ajan/harita/rank isim ve görselleri `valorant-api.com`'dan
-  çekilir; yeni ajan/harita çıktığında elle güncelleme gerekmez.
-- 🪶 **Tray öncelikli, hafif arayüz.** Sistem tepsisinde yaşar; tek tıkla açılan
-  kompakt, koyu temalı mini panel.
-- 🌐 **TR / EN.** Arayüz ve Discord metinleri için anlık dil değişimi.
-- 🚀 **Windows ile başlat** seçeneği.
+Projeyi kendi bilgisayarında çalıştırmak veya geliştirmek istersen:
 
-## 🚀 Kurulum & Çalıştırma
+### Gereksinimler
+* Node.js (v18+)
+* npm
 
-### Hazır .exe
-[Releases](https://github.com/yefeblgn/valorantrpc/releases/latest) sayfasından
-`ValorantRPC.exe` indir ve çalıştır. Başka bir şey yapman gerekmez.
-
-### Kaynaktan
+### Çalıştırma
+Bağımlılıkları yükleyip geliştirme modunda başlatmak için:
 ```bash
-pip install -r requirements.txt
-python -m vrpc
+npm install
+npm run dev
 ```
 
-Valorant ve Discord açıkken uygulama gerisini halleder. Pencereyi kapatmak onu tepsiye
-gizler; tamamen çıkmak için tepsi menüsünden **Çıkış**.
-
-### Kendi .exe'ni derle
+### Derleme (Build & Paketleme)
+Kurulum dosyasını (.exe) veya taşınabilir (portable) sürümünü oluşturmak için:
 ```bash
-python build.py    # -> dist/ValorantRPC.exe
+npm run dist
 ```
-
-## 🧠 Nasıl Çalışır?
-
-```
-Riot Client (lockfile) ──► yerel kimlik (entitlements, PUUID)
-        │
-        ├─ /chat/v4/presences ──► durum, mod, parti, seviye, tier, skor
-        ├─ core-game / pregame ─► oynanan ajan
-        └─ mmr (PD) ────────────► RR
-                                   │
-valorant-api.com (statik) ─► isim & görseller
-                                   │
-                                   ▼
-                          Discord Rich Presence
-```
+Oluşan çıktılar `./release` klasöründe yer alacaktır.
 
 ## 💻 Teknolojiler
-
-- **Python 3** · **pypresence** (Discord RPC) · **requests** (yerel API)
-- **pystray** (tepsi) · **customtkinter** + **Pillow** (mini panel)
-
-## 🤝 Katkı
-
-Hata veya öneri için bir [Issue](https://github.com/yefeblgn/valorantrpc/issues) aç,
-ya da doğrudan PR gönder.
+* **Electron + TypeScript** (Masaüstü konteyneri ve arka plan işlemleri)
+* **Vite + React** (Arayüz yapısı)
+* **Tailwind CSS + Framer Motion** (Liquid glass tasarımı ve sayfa geçişleri)
+* **Radix UI** (Erişilebilir arayüz elementleri)
 
 ## 📄 Lisans
-
-[MIT](https://github.com/yefeblgn/valorantrpc/blob/main/LICENSE)
+[MIT](LICENSE)
