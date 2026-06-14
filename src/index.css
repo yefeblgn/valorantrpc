@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+
+/* ── Tema token'ları (OLED siyah + Tailwind v4 @theme) ── */
+@theme {
+  --color-bg: #050506;
+  --color-surface: #0a0a0d;
+  --color-card: #101015;
+  --color-card-2: #17171f;
+  --color-titlebar: #050506;
+  --color-line: #23232e;
+  --color-text: #f1f2f6;
+  --color-muted: #9094a6;
+  --color-dim: #5c6072;
+  --color-accent: #ff4655;
+  --color-accent-hover: #e23a48;
+  --color-good: #46d17e;
+  --color-warn: #f5b042;
+  --color-discord: #5865f2;
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Accent runtime-override (Görünüm ayarı bunları değiştirir) */
+:root {
+  --accent: #ff4655;
+  --accent-hover: #e23a48;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #050506;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ── Arka plan aurora (cam panellerin altında bulanıklaşır) ── */
+.app-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      55% 45% at 12% -5%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(45% 40% at 105% 108%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 72%),
+    radial-gradient(40% 35% at 95% 0%, rgba(88, 101, 242, 0.1), transparent 70%),
+    #050506;
+}
+
+/* ── Liquid glass ── */
+.glass {
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.25),
+    0 10px 34px -14px rgba(0, 0, 0, 0.7);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-hover {
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+.glass-hover:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Accent-tinted glass (aktif öğeler) */
+.glass-accent {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 6px 22px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.accent-glow {
+  box-shadow: 0 0 18px -2px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+/* Sürükleme bölgeleri */
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* İnce scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.78);
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.7s ease-in-out infinite;
+}
