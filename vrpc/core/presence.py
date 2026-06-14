@@ -96,10 +96,10 @@ def _pregame(state: GameState, settings, content: Content, language: str) -> dic
         if agent_name:
             presence["state"] = agent_name
     else:
-        icon = content.tier_icon(state.competitive_tier or 0)
+        icon = content.tier_icon(0)
         if icon:
             presence["small_image"] = icon
-            presence["small_text"] = t(language, "p_pregame_small")
+            presence["small_text"] = t(language, "p_selecting_agent")
     return presence
 
 

@@ -74,6 +74,7 @@ def parse_presence(private: dict) -> GameState:
     state.competitive_tier = int(pick("competitiveTier", player_d, private) or 0)
     state.account_level = int(pick("accountLevel", player_d, private) or 0)
     state.card_id = pick("playerCardId", player_d, private) or ""
+    state.agent_uuid = pick("characterId", player_d, private) or ""
     state.is_idle = bool(private.get("isIdle", False))
     state.party_state = pick("partyState", party_d, private) or ""
     state.queue_entry_time = pick("queueEntryTime", party_d, private) or ""

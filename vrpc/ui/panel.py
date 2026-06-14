@@ -28,7 +28,7 @@ BADGE    = "#1e2235"
 MUTED    = "#6a6e82"
 DIM      = "#3e4155"
 FONT     = "Segoe UI"
-W, H     = 300, 680
+W, H     = 300, 780
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -123,14 +123,14 @@ class Panel(ctk.CTk):
     def _snap_br(self) -> None:
         self.update_idletasks()
         content_h = self.body.winfo_reqheight() + 42 + 22
-        h = min(content_h, 600)
+        h = min(content_h, H)
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         self.geometry(f"{W}x{h}+{sw - W - 14}+{sh - h - 54}")
 
     def _resize_to_fit(self) -> None:
         self.update_idletasks()
         content_h = self.body.winfo_reqheight() + 42 + 22
-        h = min(content_h, 600)
+        h = min(content_h, H)
         if h > 0 and self.winfo_height() != h:
             sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
             x = sw - W - 14

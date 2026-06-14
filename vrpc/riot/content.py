@@ -117,7 +117,12 @@ class Content:
     def agent_icon(self, uuid: str | None) -> str | None:
         if not uuid:
             return None
-        return f"{MEDIA}/agents/{uuid.lower()}/displayicon.png"
+        uuid_lower = uuid.lower().strip()
+        if uuid_lower == "00000000-0000-0000-0000-000000000000" or uuid_lower == "":
+            return None
+        if uuid_lower not in self._ensure_agents():
+            return None
+        return f"{MEDIA}/agents/{uuid_lower}/displayicon.png"
 
     def _ensure_maps(self) -> dict[str, dict]:
         if self._maps is None:
