@@ -1,6 +1,6 @@
 {
   "name": "valorantrpc",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "VALORANT durumunu Discord'a taşıyan, tamamen yerel Discord Rich Presence uygulaması.",
   "author": "yefeblgn",
   "license": "MIT",

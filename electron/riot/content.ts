@@ -25,7 +25,10 @@ const MODE_UUID: Record<string, string> = {
   ar1s: '1cd8901f-47af-49cb-d758-e2afd0eb2a39',
   mixtape: STANDARD_MODE_UUID,
   skirmish: '0e9805d8-4af6-5ffb-f467-55806a6bc484',
-  ascension: 'd08c45fe-4415-edcf-65a3-45885cc4349b'
+  ascension: 'd08c45fe-4415-edcf-65a3-45885cc4349b',
+  retake: '75b7b658-472c-0264-cbe6-049abf14f54b',
+  fortcollins: '75b7b658-472c-0264-cbe6-049abf14f54b',
+  summit: STANDARD_MODE_UUID
 }
 
 const MODE_NAME: Record<string, Record<Language, string>> = {
@@ -46,6 +49,9 @@ const MODE_NAME: Record<string, Record<Language, string>> = {
   mixtape: { tr: 'Miks', en: 'Miks' },
   skirmish: { tr: 'Çarpışma', en: 'Skirmish' },
   ascension: { tr: 'Çarpışma: Yükseliş', en: 'Skirmish: Ascension' },
+  retake: { tr: 'Akın', en: 'Retake' },
+  fortcollins: { tr: 'Akın', en: 'Retake' },
+  summit: { tr: 'Summit', en: 'Summit' },
   '': { tr: 'Lobide', en: 'In Lobby' }
 }
 
