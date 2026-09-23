@@ -10,6 +10,8 @@ import {
 
 export class RiotNotRunning extends Error {}
 
+const TOKEN_TTL = 10 * 60 * 1000
+
 interface Lock {
   name: string
   pid: string
@@ -30,7 +32,6 @@ function readLockfile(): Lock {
   }
 }
 
-
 export class LocalAuth {
   port: string | null = null
   password: string | null = null
@@ -39,6 +40,7 @@ export class LocalAuth {
   entitlementToken: string | null = null
   puuid: string | null = null
   clientVersion: string | null = null
+  private tokensAt = 0
 
   get localBase(): string {
     return `${this.protocol}://127.0.0.1:${this.port}`
@@ -60,7 +62,12 @@ export class LocalAuth {
     this.port = lock.port
     this.password = lock.password
     this.protocol = lock.protocol
+    await this.refreshTokens()
+    if (!this.clientVersion) this.clientVersion = await this.fetchClientVersion()
+    return true
+  }
 
+  async refreshTokens(): Promise<void> {
     let r: AxiosResponse
     try {
       r = await this.localGet('/entitlements/v1/token')
@@ -76,16 +83,19 @@ export class LocalAuth {
     if (!this.accessToken || !this.entitlementToken || !this.puuid) {
       throw new RiotNotRunning('incomplete entitlements response')
     }
-    if (!this.clientVersion) this.clientVersion = await this.fetchClientVersion()
-    return true
+    this.tokensAt = Date.now()
+  }
+
+  tokensStale(): boolean {
+    return Date.now() - this.tokensAt > TOKEN_TTL
   }
 
   private async fetchClientVersion(): Promise<string> {
     try {
       const r = await webClient.get(`${VALORANT_API}/version`)
       if (r.status === 200) return r.data.data.riotClientVersion
-    } catch {
-      
+    } catch (e) {
+      console.debug('[auth] client version fetch failed:', e)
     }
     return FALLBACK_CLIENT_VERSION
   }

@@ -9,6 +9,7 @@ Arayüzü mat OLED siyahı, VALORANT temalı renkler ve iOS benzeri liquid-glass
 * **Sıfır Ayar:** Riot kullanıcı adını, tagini, oynadığın modu ve rankını yerel Riot istemcisi üzerinden otomatik algılar.
 * **Tamamen Güvenli:** Hesabına dair hiçbir şifre veya hassas bilgi dışarıya gönderilmez. Uygulama sadece kendi bilgisayarındaki Riot lockfile dosyasını okur.
 * **Canlı Durum Takibi:** Lobide, ajan seçerken veya oyundayken (skor, harita, ajan, rank ve RR dahil) her şey anlık olarak Discord profiline yansır.
+* **Discord Davetleri:** Lobideyken Discord sohbetindeki `+` → *Oyuna davet et* ile arkadaşlarını doğrudan VALORANT partine çağırabilirsin. Davet edilen kişide de ValorantRPC açık olmalıdır.
 * **Hafif Arayüz:** Kapat tuşuna bastığında arka plana (sistem tepsisine - tray) küçülür ve çalışmaya devam eder. Windows açılışında otomatik başlama seçeneği mevcuttur.
 * **Hızlı Asset Çözümü:** Ajan ve harita görsellerini dahili olarak tutmak yerine doğrudan Riot'un güncel CDN sunucusundan çeker. Bu sayede uygulamanın boyutu 220 MB'tan 78 MB seviyelerine inmiştir.
 

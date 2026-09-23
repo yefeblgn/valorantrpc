@@ -1,11 +1,15 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import pkg from 'electron-updater'
 import type { UpdateInfo } from '@shared/types'
 import { IPC } from '@shared/ipc'
+import { GITHUB_RELEASES_PAGE, isPortable } from '../constants'
 
 const { autoUpdater } = pkg
 
 let state: UpdateInfo = {
+  checking: false,
+  checkedAt: null,
+  portable: isPortable(),
   available: false,
   currentVersion: app.getVersion(),
   latestVersion: app.getVersion(),
@@ -29,7 +33,7 @@ function set(p: Partial<UpdateInfo>): void {
 
 export function initUpdater(): void {
   autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.autoInstallOnAppQuit = !state.portable
 
   autoUpdater.on('update-available', (info) =>
     set({ available: true, latestVersion: info.version, error: null })
@@ -44,7 +48,7 @@ export function initUpdater(): void {
     set({ downloading: false, downloaded: true, progress: 1 })
   )
   autoUpdater.on('error', (e) =>
-    set({ downloading: false, error: String(e?.message ?? e) })
+    set({ checking: false, downloading: false, error: String(e?.message ?? e) })
   )
 }
 
@@ -53,28 +57,35 @@ export function getUpdateState(): UpdateInfo {
 }
 
 export async function checkForUpdates(): Promise<UpdateInfo> {
+  if (state.checking || state.downloading) return state
   if (!app.isPackaged) {
-    set({ available: false, error: null })
+    set({ available: false, error: null, checkedAt: Date.now() })
     return state
   }
+  set({ checking: true, error: null })
   try {
-    set({ error: null })
     await autoUpdater.checkForUpdates()
   } catch (e) {
     set({ error: String(e) })
+  } finally {
+    set({ checking: false, checkedAt: Date.now() })
   }
   return state
 }
 
-export function downloadUpdate(): void {
-  if (!app.isPackaged || state.downloading) return
+export function startUpdate(): void {
+  if (!app.isPackaged) return
+  if (state.portable) {
+    void shell.openExternal(GITHUB_RELEASES_PAGE)
+    return
+  }
+  if (state.downloaded) {
+    autoUpdater.quitAndInstall(true, true)
+    return
+  }
+  if (state.downloading) return
   set({ downloading: true, error: null })
   autoUpdater.downloadUpdate().catch((e) => set({ downloading: false, error: String(e) }))
-}
-
-export function quitAndInstall(): void {
-  if (!app.isPackaged) return
-  autoUpdater.quitAndInstall(true, true)
 }
 
 export function maybeAutoCheck(enabled: boolean): void {

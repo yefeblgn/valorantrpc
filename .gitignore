@@ -1,11 +1,9 @@
-# Dependencies
 node_modules/
 /dist/
 /out/
 /release/
 /.vite/
 
-# Logs
 logs
 *.log
 npm-debug.log*
@@ -13,13 +11,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# Cache and temporary directories
 .eslintcache
 .stylelintcache
 .npm
@@ -27,7 +23,6 @@ pids
 .parcel-cache
 .tsbuildinfo
 
-# Environment and Local Configs
 .env
 .env.local
 .env.development.local
@@ -35,7 +30,6 @@ pids
 .env.production.local
 config.json
 
-# IDE / Editors
 .idea/
 .vscode/
 *.suo
@@ -45,7 +39,6 @@ config.json
 *.sw?
 *~
 
-# Operating Systems
 .DS_Store
 Thumbs.db
 desktop.ini

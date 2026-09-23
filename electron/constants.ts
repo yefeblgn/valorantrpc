@@ -4,10 +4,10 @@ import { app } from 'electron'
 export const DISCORD_CLIENT_ID = '1434340968487850135'
 export const GITHUB_URL = 'https://github.com/yefeblgn/valorantrpc'
 export const GITHUB_REPO = 'yefeblgn/valorantrpc'
-export const GITHUB_RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
+export const GITHUB_RELEASES_PAGE = `${GITHUB_URL}/releases/latest`
 export const VALORANT_API = 'https://valorant-api.com/v1'
 export const MEDIA = 'https://media.valorant-api.com'
-
+export const REPO_MEDIA = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/media`
 
 export const CLIENT_PLATFORM =
   'ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3Mi' +
@@ -17,12 +17,24 @@ export const CLIENT_PLATFORM =
 export const FALLBACK_CLIENT_VERSION = 'release-09.00-shipping-9-0000000'
 export const FALLBACK_LARGE_IMAGE = 'valorant_logo'
 export const APP_NAME = 'ValorantRPC'
-export const DEFAULT_POLL_INTERVAL = 2.0
 
-const LOCALAPPDATA = process.env.LOCALAPPDATA || app.getPath('home')
+function getLocalAppData(): string {
+  if (process.platform === 'win32') {
+    try {
+      return join(app.getPath('appData'), '..', 'Local')
+    } catch (e) {
+      console.debug('[constants] appData path failed:', e)
+    }
+  }
+  return process.env.LOCALAPPDATA || app.getPath('home')
+}
 
-export function appDataDir(): string {
-  return app.getPath('userData')
+export function isPortable(): boolean {
+  return !!process.env.PORTABLE_EXECUTABLE_FILE
+}
+
+export function executablePath(): string {
+  return process.env.PORTABLE_EXECUTABLE_FILE || process.execPath
 }
 
 export function cacheDir(): string {
@@ -34,13 +46,12 @@ export function configPath(): string {
 }
 
 export function riotLockfilePath(): string {
-  return join(LOCALAPPDATA, 'Riot Games', 'Riot Client', 'Config', 'lockfile')
+  return join(getLocalAppData(), 'Riot Games', 'Riot Client', 'Config', 'lockfile')
 }
 
 export function valorantLogPath(): string {
-  return join(LOCALAPPDATA, 'VALORANT', 'Saved', 'Logs', 'ShooterGame.log')
+  return join(getLocalAppData(), 'VALORANT', 'Saved', 'Logs', 'ShooterGame.log')
 }
-
 
 export function assetPath(...parts: string[]): string {
   return app.isPackaged

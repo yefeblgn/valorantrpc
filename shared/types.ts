@@ -1,5 +1,3 @@
-
-
 export type PageKey = 'home' | 'settings' | 'about'
 
 export type Language = 'tr' | 'en'
@@ -19,6 +17,7 @@ export interface GameState {
   allyScore: number | null
   enemyScore: number | null
   agentUuid: string
+  partyId: string
   rr: number | null
   name: string
   tag: string
@@ -26,7 +25,6 @@ export interface GameState {
   partyState: string
   queueEntryTime: string
 }
-
 
 export type LargeImageMode = 'auto' | 'map' | 'agent' | 'rank' | 'playercard'
 export type LargeTextMode = 'auto' | 'playerName' | 'level' | 'mode' | 'mapName'
@@ -48,18 +46,17 @@ export type SmallTextMode =
   | 'level'
 
 export interface Settings {
-  
   language: Language
   languageDetected: boolean
   rpcEnabled: boolean
   autostart: boolean
   startMinimized: boolean
   closeToTray: boolean
-  pollInterval: number 
+  pollInterval: number
   autoCheckUpdates: boolean
-  
+
   accentColor: string
-  
+
   showElapsed: boolean
   showParty: boolean
   showRank: boolean
@@ -68,12 +65,13 @@ export interface Settings {
   showButton: boolean
   buttonLabel: string
   buttonUrl: string
-  
+  discordInvites: boolean
+
   largeImage: LargeImageMode
   largeText: LargeTextMode
   smallImage: SmallImageMode
   smallText: SmallTextMode
-  
+
   autolockEnabled: boolean
   autolockAgent: string
 }
@@ -96,6 +94,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showButton: true,
   buttonLabel: 'Made by ❤️ yefeblgn',
   buttonUrl: 'https://github.com/yefeblgn/valorantrpc',
+  discordInvites: true,
   largeImage: 'auto',
   largeText: 'auto',
   smallImage: 'auto',
@@ -103,7 +102,6 @@ export const DEFAULT_SETTINGS: Settings = {
   autolockEnabled: false,
   autolockAgent: ''
 }
-
 
 export interface BuiltPresence {
   details?: string
@@ -114,6 +112,8 @@ export interface BuiltPresence {
   smallText?: string
   startTimestamp?: number
   partySize?: [number, number]
+  partyId?: string
+  joinSecret?: string
   buttons?: { label: string; url: string }[]
 }
 
@@ -129,17 +129,29 @@ export interface DiscordUser {
   avatar: string | null
 }
 
+export interface JoinRequest {
+  id: string
+  username: string
+  globalName: string
+  avatar: string | null
+  expiresAt: number
+}
+
 export interface PlayerInfo {
   name: string
   tag: string
 }
 
+export type ScoreInfo =
+  | { kind: 'rounds'; ally: number; enemy: number }
+  | { kind: 'health'; hp: number }
 
 export interface DisplayInfo {
   statusKey: 'idle' | 'menus' | 'pregame' | 'ingame'
   isQueuing: boolean
   isCustom: boolean
   modeName: string
+  score: ScoreInfo | null
   mapName: string
   mapSplash: string | null
   agentName: string
@@ -150,7 +162,6 @@ export interface DisplayInfo {
   cardSquare: string | null
 }
 
-
 export interface Snapshot {
   state: GameState
   connection: ConnectionStatus
@@ -158,6 +169,7 @@ export interface Snapshot {
   presence: BuiltPresence | null
   display: DisplayInfo
   discordUser: DiscordUser | null
+  joinRequests: JoinRequest[]
 }
 
 export interface AgentOption {
@@ -166,11 +178,14 @@ export interface AgentOption {
 }
 
 export interface UpdateInfo {
+  checking: boolean
+  checkedAt: number | null
+  portable: boolean
   available: boolean
   currentVersion: string
   latestVersion: string
   downloading: boolean
-  progress: number 
+  progress: number
   bytesPerSecond: number
   downloaded: boolean
   error: string | null

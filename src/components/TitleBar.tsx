@@ -1,6 +1,8 @@
 import { Minus, X } from 'lucide-react'
+import { useT } from '../lib/i18n'
 
 export function TitleBar(): JSX.Element {
+  const t = useT()
   return (
     <header className="drag flex h-11 shrink-0 items-center justify-between border-b border-white/5 pl-3.5 pr-1">
       <div className="flex items-center gap-2.5">
@@ -17,14 +19,14 @@ export function TitleBar(): JSX.Element {
         <button
           onClick={() => window.api.minimize()}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-white/8 hover:text-text"
-          aria-label="Küçült"
+          aria-label={t('minimize')}
         >
           <Minus size={15} />
         </button>
         <button
           onClick={() => window.api.close()}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-accent hover:text-white"
-          aria-label="Kapat"
+          aria-label={t('close')}
         >
           <X size={15} />
         </button>

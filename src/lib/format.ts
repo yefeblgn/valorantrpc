@@ -1,4 +1,3 @@
-
 export function darken(hex: string, amount = 0.12): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex)
   if (!m) return hex
@@ -9,11 +8,9 @@ export function darken(hex: string, amount = 0.12): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
-
 export function isUrl(s: string | undefined | null): boolean {
   return !!s && /^https?:\/\//.test(s)
 }
-
 
 export function discordAvatarUrl(
   user: { id: string; avatar: string | null } | null | undefined
@@ -26,7 +23,6 @@ export function discordAvatarUrl(
   const ext = user.avatar.startsWith('a_') ? 'webp' : 'png'
   return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=64`
 }
-
 
 export function elapsed(startSec: number): string {
   const total = Math.max(0, Math.floor(Date.now() / 1000) - startSec)

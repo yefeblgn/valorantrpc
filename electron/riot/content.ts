@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { AgentOption, Language } from '@shared/types'
-import { MEDIA, VALORANT_API, cacheDir } from '../constants'
+import { MEDIA, REPO_MEDIA, VALORANT_API, cacheDir } from '../constants'
 import { apiLanguage } from '@shared/i18n'
 import { webClient } from '../lib/http'
 
-const CACHE_TTL = 12 * 3600 * 1000 
+const CACHE_TTL = 12 * 3600 * 1000
+const RETRY_DELAY = 60_000
 const STANDARD_MODE_UUID = '96bd3920-4f36-d026-2b28-c683eb0bcac5'
 
 const MODE_UUID: Record<string, string> = {
@@ -31,6 +32,15 @@ const MODE_UUID: Record<string, string> = {
   summit: STANDARD_MODE_UUID
 }
 
+const MODE_MEDIA: Record<string, { icon: string; art: string }> = {
+  abilitydraftarena: {
+    icon: `${REPO_MEDIA}/gauntlet_glitched_icon.png`,
+    art: `${REPO_MEDIA}/gauntlet_glitched.jpg`
+  }
+}
+
+const TEAM_HEALTH_MODES = new Set(['abilitydraftarena'])
+
 const MODE_NAME: Record<string, Record<Language, string>> = {
   competitive: { tr: 'Rekabetçi', en: 'Competitive' },
   unrated: { tr: 'Derecesiz', en: 'Unrated' },
@@ -52,6 +62,7 @@ const MODE_NAME: Record<string, Record<Language, string>> = {
   retake: { tr: 'Akın', en: 'Retake' },
   fortcollins: { tr: 'Akın', en: 'Retake' },
   summit: { tr: 'Summit', en: 'Summit' },
+  abilitydraftarena: { tr: 'Galeyan: Güç Bozulması', en: 'Gauntlet: Glitched' },
   '': { tr: 'Lobide', en: 'In Lobby' }
 }
 
@@ -64,11 +75,11 @@ interface TierEntry {
   icon: string | null
 }
 
-
 export class Content {
   private agents: Record<string, string> | null = null
   private maps: Record<string, MapEntry> | null = null
   private tiers: Record<number, TierEntry> | null = null
+  private retryAt = 0
 
   constructor(public language: Language = 'en') {}
 
@@ -76,12 +87,20 @@ export class Content {
     if (language !== this.language) {
       this.language = language
       this.agents = this.maps = this.tiers = null
+      this.retryAt = 0
     }
   }
 
-  
   async ensureAll(): Promise<void> {
+    if (Date.now() < this.retryAt) return
     await Promise.all([this.ensureAgents(), this.ensureMaps(), this.ensureTiers()])
+    const empty = (o: object | null): boolean => !!o && Object.keys(o).length === 0
+    if (empty(this.agents) || empty(this.maps) || empty(this.tiers)) {
+      if (empty(this.agents)) this.agents = null
+      if (empty(this.maps)) this.maps = null
+      if (empty(this.tiers)) this.tiers = null
+      this.retryAt = Date.now() + RETRY_DELAY
+    }
   }
 
   private cacheFile(name: string): string {
@@ -98,7 +117,6 @@ export class Content {
           return JSON.parse(readFileSync(cf, 'utf-8'))
         }
       } catch {
-        
       }
     }
     try {
@@ -117,7 +135,6 @@ export class Content {
       try {
         return JSON.parse(readFileSync(cf, 'utf-8'))
       } catch {
-        
       }
     }
     return null
@@ -167,7 +184,6 @@ export class Content {
     return this.tiers
   }
 
-  
   playableAgents(): AgentOption[] {
     const dict = this.agents ?? {}
     return Object.entries(dict)
@@ -227,15 +243,25 @@ export class Content {
 
   modeIcon(queueId: string | null | undefined): string | null {
     const key = this.queueKey(queueId)
+    if (MODE_MEDIA[key]) return MODE_MEDIA[key].icon
     const uuid = MODE_UUID[key] ?? MODE_UUID.unrated
     return uuid ? `${MEDIA}/gamemodes/${uuid}/displayicon.png` : null
   }
 
   modeIconUnique(queueId: string | null | undefined): string | null {
     const key = this.queueKey(queueId)
+    if (MODE_MEDIA[key]) return MODE_MEDIA[key].icon
     const uuid = MODE_UUID[key]
     if (!uuid || uuid === STANDARD_MODE_UUID) return null
     return `${MEDIA}/gamemodes/${uuid}/displayicon.png`
+  }
+
+  modeArt(queueId: string | null | undefined): string | null {
+    return MODE_MEDIA[this.queueKey(queueId)]?.art ?? null
+  }
+
+  usesTeamHealth(queueId: string | null | undefined): boolean {
+    return TEAM_HEALTH_MODES.has(this.queueKey(queueId))
   }
 
   cardWide(uuid: string | null | undefined): string | null {

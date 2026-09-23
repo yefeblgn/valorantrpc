@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Snapshot } from '@shared/types'
 import { useT } from '../lib/i18n'
 
@@ -6,6 +6,11 @@ export function PlayerCard({ snap }: { snap: Snapshot }): JSX.Element {
   const t = useT()
   const [bannerOk, setBannerOk] = useState(true)
   const { player, state, display } = snap
+
+  useEffect(() => {
+    setBannerOk(true)
+  }, [display.cardWide])
+
   const hasPlayer = !!player.name
   const ranked = state.competitiveTier > 0
 

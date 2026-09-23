@@ -24,15 +24,22 @@ export const useStore = create<AppStore>((set) => ({
 
 let initialized = false
 
-
 export async function initStore(): Promise<void> {
   if (initialized) return
   initialized = true
-  const [settings, snapshot] = await Promise.all([
-    window.api.getSettings(),
-    window.api.getState()
-  ])
-  useStore.setState({ settings, snapshot, ready: true })
   window.api.onSettingsChanged((s) => useStore.getState().setSettings(s))
   window.api.onStateChanged((s) => useStore.getState().setSnapshot(s))
+  for (;;) {
+    try {
+      const [settings, snapshot] = await Promise.all([
+        window.api.getSettings(),
+        window.api.getState()
+      ])
+      useStore.setState({ settings, snapshot, ready: true })
+      return
+    } catch (e) {
+      console.error('[store] init failed, retrying:', e)
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as RTabs from '@radix-ui/react-tabs'
 import { motion } from 'framer-motion'
 import type {
@@ -78,7 +78,6 @@ function Group({ children }: { children: React.ReactNode }): JSX.Element {
   return <div className="glass rounded-2xl py-1.5">{children}</div>
 }
 
-
 function GeneralTab(): JSX.Element {
   const t = useT()
   const { settings, patch } = useSettings()
@@ -138,7 +137,6 @@ function GeneralTab(): JSX.Element {
   )
 }
 
-
 function PresenceTab(): JSX.Element {
   const t = useT()
   const { settings, patch } = useSettings()
@@ -148,6 +146,7 @@ function PresenceTab(): JSX.Element {
     keys.map((k) => ({ value: k, label: t(IMG_LABEL[k]) }))
   const txtOpt = (keys: string[]): Option[] =>
     keys.map((k) => ({ value: k, label: t(TXT_LABEL[k]) }))
+  const urlInvalid = !!settings.buttonUrl && !/^https?:\/\/[^\s]+$/i.test(settings.buttonUrl)
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
@@ -204,6 +203,12 @@ function PresenceTab(): JSX.Element {
         </Group>
 
         <Group>
+          <Field label={t('discord_invites')} desc={t('discord_invites_desc')}>
+            <Switch
+              checked={settings.discordInvites}
+              onChange={(v) => patch({ discordInvites: v })}
+            />
+          </Field>
           <Field label={t('show_button')}>
             <Switch checked={settings.showButton} onChange={(v) => patch({ showButton: v })} />
           </Field>
@@ -212,12 +217,18 @@ function PresenceTab(): JSX.Element {
               <Field label={t('button_label')}>
                 <TextInput
                   value={settings.buttonLabel}
+                  maxLength={32}
                   onChange={(v) => patch({ buttonLabel: v })}
                 />
               </Field>
-              <Field label={t('button_url')}>
+              <Field
+                label={t('button_url')}
+                desc={urlInvalid ? t('button_url_invalid') : undefined}
+                descTone={urlInvalid ? 'error' : 'default'}
+              >
                 <TextInput
                   value={settings.buttonUrl}
+                  invalid={urlInvalid}
                   onChange={(v) => patch({ buttonUrl: v })}
                   width={220}
                 />
@@ -233,7 +244,6 @@ function PresenceTab(): JSX.Element {
     </div>
   )
 }
-
 
 function AutolockTab(): JSX.Element {
   const t = useT()
@@ -265,27 +275,37 @@ function AutolockTab(): JSX.Element {
   )
 }
 
+function applyAccent(color: string): void {
+  const root = document.documentElement
+  root.style.setProperty('--color-accent', color)
+  root.style.setProperty('--accent', color)
+  root.style.setProperty('--color-accent-hover', darken(color, 0.12))
+  root.style.setProperty('--accent-hover', darken(color, 0.12))
+}
 
 function AppearanceTab(): JSX.Element {
   const t = useT()
   const { settings, patch } = useSettings()
   const [color, setColor] = useState(settings.accentColor)
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setColor(settings.accentColor)
   }, [settings.accentColor])
 
-  const handleColorChange = (newColor: string) => {
-    setColor(newColor)
-    const root = document.documentElement
-    root.style.setProperty('--color-accent', newColor)
-    root.style.setProperty('--accent', newColor)
-    root.style.setProperty('--color-accent-hover', darken(newColor, 0.12))
-    root.style.setProperty('--accent-hover', darken(newColor, 0.12))
-  }
+  useEffect(
+    () => () => {
+      if (commitTimer.current) clearTimeout(commitTimer.current)
+    },
+    []
+  )
 
-  const handleColorCommit = (finalColor: string) => {
-    patch({ accentColor: finalColor })
+  const pick = (next: string, immediate = false): void => {
+    setColor(next)
+    applyAccent(next)
+    if (commitTimer.current) clearTimeout(commitTimer.current)
+    if (immediate) void patch({ accentColor: next })
+    else commitTimer.current = setTimeout(() => void patch({ accentColor: next }), 300)
   }
 
   return (
@@ -295,7 +315,7 @@ function AppearanceTab(): JSX.Element {
           {ACCENTS.map((c) => (
             <button
               key={c}
-              onClick={() => patch({ accentColor: c })}
+              onClick={() => pick(c, true)}
               className={`h-6 w-6 rounded-full ring-2 transition ${
                 color.toLowerCase() === c.toLowerCase()
                   ? 'ring-white'
@@ -306,15 +326,11 @@ function AppearanceTab(): JSX.Element {
             />
           ))}
           <label className="relative h-6 w-6 cursor-pointer overflow-hidden rounded-full ring-2 ring-line">
-            <span
-              className="block h-full w-full"
-              style={{ background: color }}
-            />
+            <span className="block h-full w-full" style={{ background: color }} />
             <input
               type="color"
               value={color}
-              onInput={(e) => handleColorChange((e.target as HTMLInputElement).value)}
-              onChange={(e) => handleColorCommit((e.target as HTMLInputElement).value)}
+              onChange={(e) => pick(e.target.value)}
               className="absolute inset-0 cursor-pointer opacity-0"
             />
           </label>
@@ -324,11 +340,9 @@ function AppearanceTab(): JSX.Element {
   )
 }
 
-
 function UpdatesTab(): JSX.Element {
   return <UpdatePanel />
 }
-
 
 function Sub({ children }: { children: React.ReactNode }): JSX.Element {
   return (
@@ -341,11 +355,15 @@ function Sub({ children }: { children: React.ReactNode }): JSX.Element {
 function TextInput({
   value,
   onChange,
-  width = 180
+  width = 180,
+  maxLength,
+  invalid = false
 }: {
   value: string
   onChange: (v: string) => void
   width?: number
+  maxLength?: number
+  invalid?: boolean
 }): JSX.Element {
   const [localVal, setLocalVal] = useState(value)
 
@@ -357,17 +375,19 @@ function TextInput({
     <input
       type="text"
       value={localVal}
+      maxLength={maxLength}
+      spellCheck={false}
       onChange={(e) => setLocalVal(e.target.value)}
       onBlur={() => {
         if (localVal !== value) onChange(localVal)
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur()
-        }
+        if (e.key === 'Enter') e.currentTarget.blur()
       }}
       style={{ width }}
-      className="glass-subtle rounded-lg px-3 py-1.5 text-[12.5px] text-text outline-none transition focus:border-accent"
+      className={`glass-subtle rounded-lg px-3 py-1.5 text-[12.5px] text-text outline-none transition focus:border-accent ${
+        invalid ? 'ring-1 ring-accent' : ''
+      }`}
     />
   )
 }

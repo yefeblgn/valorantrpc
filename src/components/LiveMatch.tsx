@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Gamepad2, Map as MapIcon, Swords, Users } from 'lucide-react'
+import { Gamepad2, Heart, Map as MapIcon, Swords, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Snapshot } from '@shared/types'
 import { useT } from '../lib/i18n'
@@ -50,10 +50,15 @@ export function LiveMatch({ snap }: { snap: Snapshot }): JSX.Element {
         text: display.agentName || t('agent')
       })
     }
-    if (state.allyScore !== null && state.enemyScore !== null) {
+    if (display.score?.kind === 'health') {
+      rows.push({
+        icon: <Heart size={15} />,
+        text: `${t('team_hp')}: ${display.score.hp}`
+      })
+    } else if (display.score) {
       rows.push({
         icon: <Swords size={15} />,
-        text: `${t('score')}: ${state.allyScore} - ${state.enemyScore}`
+        text: `${t('score')}: ${display.score.ally} - ${display.score.enemy}`
       })
     }
     if (state.partySize > 1) {

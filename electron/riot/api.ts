@@ -10,7 +10,6 @@ export interface MatchPhase {
   provisioning_flow?: string
 }
 
-
 export class RiotApi {
   constructor(
     private auth: LocalAuth,
@@ -55,25 +54,55 @@ export class RiotApi {
   }
 
   async selfPresence(): Promise<Record<string, unknown> | null> {
-    try {
-      const r = await this.auth.localGet('/chat/v4/presences')
-      if (r.status !== 200) return null
-      const presences: Array<Record<string, unknown>> = r.data?.presences ?? []
-      for (const p of presences) {
-        if (p.puuid === this.auth.puuid && p.product === 'valorant') {
-          const priv = p.private as string | undefined
-          if (!priv) return {}
-          const decoded = Buffer.from(priv, 'base64').toString('utf-8')
-          return JSON.parse(decoded)
-        }
+    const r = await this.auth.localGet('/chat/v4/presences')
+    if (r.status !== 200) throw new Error(`presences HTTP ${r.status}`)
+    const presences: Array<Record<string, unknown>> = r.data?.presences ?? []
+    for (const p of presences) {
+      if (p.puuid === this.auth.puuid && p.product === 'valorant') {
+        const priv = p.private as string | undefined
+        if (!priv) return {}
+        return JSON.parse(Buffer.from(priv, 'base64').toString('utf-8'))
       }
-    } catch (e) {
-      console.debug('[api] selfPresence error:', e)
     }
     return null
   }
 
-  
+  async partyInviteCode(partyId: string): Promise<string | null> {
+    try {
+      const r = await this.remoteGet(`${this.glz}/parties/v1/parties/${partyId}`)
+      if (r.status === 200 && r.data?.InviteCode) return String(r.data.InviteCode)
+      const g = await this.remotePost(`${this.glz}/parties/v1/parties/${partyId}/invitecode`)
+      if (g.status === 200 && g.data?.InviteCode) return String(g.data.InviteCode)
+      console.debug('[api] invite code HTTP', g.status)
+    } catch (e) {
+      console.debug('[api] invite code error:', e)
+    }
+    return null
+  }
+
+  async joinByCode(code: string): Promise<boolean> {
+    try {
+      const r = await this.remotePost(
+        `${this.glz}/parties/v1/players/joinbycode/${encodeURIComponent(code)}`
+      )
+      return r.status === 200
+    } catch (e) {
+      console.debug('[api] joinByCode error:', e)
+      return false
+    }
+  }
+
+  async requestJoin(partyId: string): Promise<boolean> {
+    try {
+      const r = await this.remotePost(`${this.glz}/parties/v1/parties/${partyId}/request`, {
+        Subjects: [this.auth.puuid]
+      })
+      return r.status === 200
+    } catch (e) {
+      console.debug('[api] requestJoin error:', e)
+      return false
+    }
+  }
   async matchPhase(): Promise<MatchPhase | null> {
     try {
       const info = await this.coregameInfo()

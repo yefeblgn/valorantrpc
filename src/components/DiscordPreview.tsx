@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Gamepad2, Users } from 'lucide-react'
 import type { BuiltPresence } from '@shared/types'
 import { useT } from '../lib/i18n'
+import { useStore } from '../store'
 import { elapsed, isUrl } from '../lib/format'
 
 export function DiscordPreview({
@@ -11,62 +13,81 @@ export function DiscordPreview({
   rpcEnabled: boolean
 }): JSX.Element {
   const t = useT()
+  const lang = useStore((s) => s.settings?.language ?? 'en')
   const [, setTick] = useState(0)
 
-  
   useEffect(() => {
     if (!presence?.startTimestamp) return
     const id = setInterval(() => setTick((x) => x + 1), 1000)
     return () => clearInterval(id)
   }, [presence?.startTimestamp])
 
+  const party = presence?.partySize
+  const partyText = party
+    ? lang === 'tr'
+      ? `(${party[0]}/${party[1]})`
+      : `(${party[0]} of ${party[1]})`
+    : ''
+
   return (
     <div className="rounded-xl bg-[#232428] p-3.5 ring-1 ring-black/40">
-      <div className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-[#b5bac1]">
-        {t('live_preview')}
-      </div>
+      <div className="mb-2.5 text-[12px] font-semibold text-[#dbdee1]">{t('playing')}</div>
 
       {!rpcEnabled || !presence ? (
-        <Empty label={!rpcEnabled ? t('rpc_enabled') + ' — ' + t('disconnected') : t('status_idle')} />
+        <Empty
+          label={!rpcEnabled ? `${t('rpc_enabled')} — ${t('disconnected')}` : t('status_idle')}
+        />
       ) : (
         <div className="flex gap-3">
           <ImageStack presence={presence} />
-          <div className="flex min-w-0 flex-col justify-center">
+          <div className="flex min-w-0 flex-col justify-center gap-0.5">
+            <div className="truncate text-[14px] font-semibold text-white">VALORANT</div>
             {presence.details && (
-              <div className="truncate text-[13px] font-semibold text-white">
-                {presence.details}
-              </div>
+              <div className="truncate text-[12px] text-[#dbdee1]">{presence.details}</div>
             )}
-            {(presence.state || presence.partySize) && (
-              <div className="truncate text-[12px] text-[#dbdee1]">
-                {presence.state}
-                {presence.partySize && (
-                  <span className="text-[#b5bac1]">
-                    {presence.state ? ' ' : ''}({presence.partySize[0]} of {presence.partySize[1]})
+            {(presence.state || party || presence.startTimestamp) && (
+              <div className="flex min-w-0 items-center gap-2 text-[12px] text-[#b5bac1]">
+                {(presence.state || party) && (
+                  <span className="flex min-w-0 items-center gap-1 truncate">
+                    {party && <Users size={12} className="shrink-0" />}
+                    <span className="truncate">
+                      {presence.state}
+                      {presence.state && partyText ? ' ' : ''}
+                      {partyText}
+                    </span>
                   </span>
                 )}
-              </div>
-            )}
-            {presence.startTimestamp && (
-              <div className="text-[12px] text-[#b5bac1]">
-                {elapsed(presence.startTimestamp)} elapsed
+                {presence.startTimestamp && (
+                  <span className="flex shrink-0 items-center gap-1 font-medium text-[#3ba55d]">
+                    <Gamepad2 size={13} />
+                    {elapsed(presence.startTimestamp)}
+                  </span>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {rpcEnabled && presence?.buttons && presence.buttons.length > 0 && (
-        <div className="mt-3 flex flex-col gap-2">
-          {presence.buttons.map((b, i) => (
-            <div
-              key={i}
-              className="truncate rounded-[3px] bg-[#4e5058] px-3 py-1.5 text-center text-[12px] font-medium text-white"
-            >
-              {b.label}
-            </div>
-          ))}
+      {rpcEnabled && presence?.joinSecret ? (
+        <div className="mt-3 rounded-[4px] bg-[#5865f2] px-3 py-1.5 text-center text-[12px] font-medium text-white">
+          {t('ask_to_join')}
         </div>
+      ) : (
+        rpcEnabled &&
+        presence?.buttons &&
+        presence.buttons.length > 0 && (
+          <div className="mt-3 flex flex-col gap-2">
+            {presence.buttons.map((b, i) => (
+              <div
+                key={i}
+                className="truncate rounded-[4px] bg-[#4e5058] px-3 py-1.5 text-center text-[12px] font-medium text-white"
+              >
+                {b.label}
+              </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   )
@@ -74,13 +95,13 @@ export function DiscordPreview({
 
 function ImageStack({ presence }: { presence: BuiltPresence }): JSX.Element {
   return (
-    <div className="relative h-[60px] w-[60px] shrink-0">
-      <PreviewImage src={presence.largeImage} className="h-[60px] w-[60px] rounded-[8px]" />
+    <div className="relative h-[64px] w-[64px] shrink-0">
+      <PreviewImage src={presence.largeImage} className="h-[64px] w-[64px] rounded-[8px]" />
       {isUrl(presence.smallImage) && (
         <img
           src={presence.smallImage}
           alt=""
-          className="absolute -bottom-1.5 -right-1.5 h-[22px] w-[22px] rounded-full ring-2 ring-[#232428]"
+          className="absolute -bottom-1.5 -right-1.5 h-[24px] w-[24px] rounded-full bg-[#232428] ring-[3px] ring-[#232428]"
         />
       )}
     </div>
@@ -101,11 +122,15 @@ function PreviewImage({
   }, [src])
 
   if (isUrl(src) && ok) {
-    return <img src={src} alt="" onError={() => setOk(false)} className={`object-cover ${className}`} />
+    return (
+      <img src={src} alt="" onError={() => setOk(false)} className={`object-cover ${className}`} />
+    )
   }
-  
+
   return (
-    <div className={`flex items-center justify-center bg-gradient-to-br from-accent to-accent-hover ${className}`}>
+    <div
+      className={`flex items-center justify-center bg-gradient-to-br from-accent to-accent-hover ${className}`}
+    >
       <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden>
         <polygon points="13,18 23,18 32,38 41,18 51,18 32,50" fill="#fff" fillOpacity="0.95" />
       </svg>
@@ -116,7 +141,7 @@ function PreviewImage({
 function Empty({ label }: { label: string }): JSX.Element {
   return (
     <div className="flex items-center gap-3 py-2 opacity-60">
-      <div className="h-[60px] w-[60px] shrink-0 rounded-[8px] bg-[#1e1f22]" />
+      <div className="h-[64px] w-[64px] shrink-0 rounded-[8px] bg-[#1e1f22]" />
       <div className="flex flex-col gap-1.5">
         <div className="h-2.5 w-28 rounded bg-[#1e1f22]" />
         <div className="h-2.5 w-20 rounded bg-[#1e1f22]" />

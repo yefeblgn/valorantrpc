@@ -1,5 +1,3 @@
-
-
 export function ValorantMark({ size = 16 }: { size?: number }): JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>

@@ -4,14 +4,22 @@ import type {
   GameState,
   Language,
   LargeTextMode,
+  ScoreInfo,
   Settings,
   SmallImageMode,
   SmallTextMode
 } from '@shared/types'
+import { DEFAULT_SETTINGS } from '@shared/types'
 import { FALLBACK_LARGE_IMAGE } from '../constants'
 import { t } from '@shared/i18n'
 import type { Content } from '../riot/content'
 import { isCustom, isQueuing } from './state'
+
+const HTTP_URL = /^https?:\/\/[^\s]+$/i
+const DEFAULT_BUTTON = {
+  label: DEFAULT_SETTINGS.buttonLabel,
+  url: DEFAULT_SETTINGS.buttonUrl
+}
 
 function levelText(state: GameState, language: Language): string {
   return `${t(language, 'level')} ${state.accountLevel}`
@@ -29,13 +37,41 @@ function largeCard(
   return [FALLBACK_LARGE_IMAGE, text]
 }
 
+function largeFallback(
+  state: GameState,
+  settings: Settings,
+  content: Content,
+  language: Language
+): [string, string] {
+  const [mapName, splash] = content.mapInfo(state.mapPath)
+  if (splash) return [splash, mapName]
+  const art = content.modeArt(state.queueId)
+  if (art) return [art, content.modeName(state.queueId)]
+  return largeCard(state, settings, language)
+}
+
+function scoreInfo(state: GameState, content: Content): ScoreInfo | null {
+  if (state.allyScore === null || state.enemyScore === null) return null
+  if (content.usesTeamHealth(state.queueId)) {
+    return state.enemyScore > 0 ? { kind: 'health', hp: state.enemyScore } : null
+  }
+  return { kind: 'rounds', ally: state.allyScore, enemy: state.enemyScore }
+}
+
+function scoreText(state: GameState, content: Content, language: Language): string {
+  const score = scoreInfo(state, content)
+  if (!score) return ''
+  return score.kind === 'health'
+    ? `${score.hp} ${t(language, 'hp')}`
+    : `${score.ally} - ${score.enemy}`
+}
+
 function rankSmall(state: GameState, content: Content): [string | null, string] {
   const icon = content.tierIcon(state.competitiveTier)
   const name = content.tierName(state.competitiveTier)
   if (state.rr !== null && name) return [icon, `${name} · ${state.rr} RR`]
   return [icon, name]
 }
-
 
 function buildMenu(
   state: GameState,
@@ -92,10 +128,7 @@ function buildPregame(
   content: Content,
   language: Language
 ): BuiltPresence {
-  const [mapName, splash] = content.mapInfo(state.mapPath)
-  const [largeImage, largeText] = splash
-    ? [splash, mapName]
-    : largeCard(state, settings, language)
+  const [largeImage, largeText] = largeFallback(state, settings, content, language)
 
   const p: BuiltPresence = {
     details: t(language, 'p_selecting_agent'),
@@ -125,17 +158,13 @@ function buildIngame(
   content: Content,
   language: Language
 ): BuiltPresence {
-  const [mapName, splash] = content.mapInfo(state.mapPath)
-  const [largeImage, largeText] = splash
-    ? [splash, mapName]
-    : largeCard(state, settings, language)
+  const [largeImage, largeText] = largeFallback(state, settings, content, language)
 
   const details = isCustom(state) ? t(language, 'custom') : content.modeName(state.queueId)
 
-  const showScore =
-    settings.showScore && state.allyScore !== null && state.enemyScore !== null
-  const stateLine = showScore
-    ? `${t(language, 'p_in_game')} · ${state.allyScore} - ${state.enemyScore}`
+  const score = settings.showScore ? scoreText(state, content, language) : ''
+  const stateLine = score
+    ? `${t(language, 'p_in_game')} · ${score}`
     : t(language, 'p_in_game')
 
   const p: BuiltPresence = { details, state: stateLine, largeImage, largeText }
@@ -154,7 +183,6 @@ function buildIngame(
   }
   return p
 }
-
 
 function imageFor(
   mode: Exclude<SmallImageMode, 'auto' | 'none'>,
@@ -195,9 +223,7 @@ function textFor(
     case 'agentName':
       return content.agentName(state.agentUuid)
     case 'score':
-      return state.allyScore !== null && state.enemyScore !== null
-        ? `${state.allyScore} - ${state.enemyScore}`
-        : ''
+      return scoreText(state, content, language)
     case 'rank': {
       const name = content.tierName(state.competitiveTier)
       if (!name) return ''
@@ -207,7 +233,6 @@ function textFor(
       return ''
   }
 }
-
 
 function applyOverrides(
   p: BuiltPresence,
@@ -237,13 +262,28 @@ function applyOverrides(
   }
 }
 
+export interface PartyInvite {
+  partyId: string
+  secret: string
+}
+
+export function canInvite(state: GameState): boolean {
+  return (
+    state.sessionState === 'menus' &&
+    !isQueuing(state) &&
+    !!state.partyId &&
+    state.partySize > 0 &&
+    state.partySize < state.partyMax
+  )
+}
 
 export function buildPresence(
   state: GameState,
   settings: Settings,
   content: Content,
   language: Language,
-  startTs: number
+  startTs: number,
+  invite: PartyInvite | null = null
 ): BuiltPresence | null {
   if (state.sessionState === 'idle') return null
 
@@ -258,15 +298,19 @@ export function buildPresence(
   if (settings.showParty && state.partySize > 0) {
     p.partySize = [state.partySize, state.partyMax]
   }
-  if (settings.showButton) {
-    const label = settings.buttonLabel?.trim() || 'Made by ❤️ yefeblgn'
-    const url = settings.buttonUrl?.trim() || 'https://github.com/yefeblgn/valorantrpc'
-    p.buttons = [{ label, url }]
+
+  if (settings.discordInvites && invite && canInvite(state)) {
+    p.partySize = [state.partySize, state.partyMax]
+    p.partyId = invite.partyId
+    p.joinSecret = invite.secret
+  } else if (settings.showButton) {
+    const label = settings.buttonLabel.trim() || DEFAULT_BUTTON.label
+    const url = settings.buttonUrl.trim()
+    p.buttons = [{ label, url: HTTP_URL.test(url) ? url : DEFAULT_BUTTON.url }]
   }
 
   return p
 }
-
 
 export function buildDisplay(
   state: GameState,
@@ -278,6 +322,7 @@ export function buildDisplay(
     isQueuing: isQueuing(state),
     isCustom: isCustom(state),
     modeName: content.modeName(state.queueId),
+    score: scoreInfo(state, content),
     mapName,
     mapSplash,
     agentName: content.agentName(state.agentUuid),

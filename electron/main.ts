@@ -3,17 +3,16 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import type { Settings, Snapshot } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import { t } from '@shared/i18n'
-import { assetPath } from './constants'
+import { DISCORD_CLIENT_ID, assetPath, executablePath } from './constants'
 import { loadSettings, setAutostart, updateSettings } from './settings'
-import { Poller } from './core/poller'
+import { Poller, type Notice } from './core/poller'
 import { AppTray } from './tray'
 import {
   checkForUpdates,
-  downloadUpdate,
   getUpdateState,
   initUpdater,
   maybeAutoCheck,
-  quitAndInstall
+  startUpdate
 } from './core/updater'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -23,10 +22,8 @@ let tray: AppTray | null = null
 let isQuitting = false
 let trayHideNotified = false
 
-
 process.on('uncaughtException', (e) => console.error('[uncaught]', e))
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e))
-
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -40,7 +37,6 @@ function broadcast(channel: string, payload: unknown): void {
     if (!w.isDestroyed()) w.webContents.send(channel, payload)
   }
 }
-
 
 function applyPatch(patch: Partial<Settings>): Settings {
   const prev = loadSettings()
@@ -62,6 +58,12 @@ const poller = new Poller(() => loadSettings(), applyPatch)
 poller.on('snapshot', (snap: Snapshot) => {
   broadcast(IPC.stateChanged, snap)
   tray?.update(snap.connection.valorant, statusText(snap))
+})
+
+poller.on('notice', (notice: Notice) => {
+  const lang = loadSettings().language
+  const message = t(lang, notice.key).replace('{name}', notice.name ?? '')
+  tray?.notify(message, t(lang, 'join_notice_title'))
 })
 
 function statusText(snap: Snapshot): string {
@@ -108,7 +110,6 @@ function createWindow(): void {
     if (!loadSettings().startMinimized) mainWindow?.show()
   })
 
-  
   mainWindow.on('close', (e) => {
     if (!isQuitting && loadSettings().closeToTray) {
       e.preventDefault()
@@ -122,8 +123,12 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http')) shell.openExternal(url)
+    if (url.startsWith('http')) void shell.openExternal(url)
     return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (url !== mainWindow?.webContents.getURL()) e.preventDefault()
   })
 
   if (isDev) {
@@ -133,15 +138,13 @@ function createWindow(): void {
   }
 }
 
-
 function registerIpc(): void {
   ipcMain.on(IPC.windowMinimize, () => mainWindow?.minimize())
   ipcMain.on(IPC.windowClose, () => mainWindow?.close())
-  ipcMain.on(IPC.windowHide, () => mainWindow?.hide())
   ipcMain.on(IPC.appQuit, () => quitApp())
   ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
-  ipcMain.on(IPC.shellOpenExternal, (_e, url: string) => {
-    if (typeof url === 'string' && url.startsWith('http')) shell.openExternal(url)
+  ipcMain.on(IPC.shellOpenExternal, (_e, url: unknown) => {
+    if (typeof url === 'string' && /^https?:\/\//.test(url)) void shell.openExternal(url)
   })
 
   ipcMain.handle(IPC.settingsGet, () => loadSettings())
@@ -149,17 +152,25 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.stateGet, () => poller.getSnapshot())
   ipcMain.handle(IPC.agentsList, () => poller.getAgents())
+  ipcMain.on(IPC.inviteRespond, (_e, userId: unknown, accept: unknown) => {
+    if (typeof userId === 'string') poller.respondJoin(userId, accept === true)
+  })
 
-  
+  ipcMain.handle(IPC.updateGet, () => getUpdateState())
   ipcMain.handle(IPC.updateCheck, () => checkForUpdates())
   ipcMain.on(IPC.updateStart, () => {
-    if (getUpdateState().downloaded) {
-      isQuitting = true
-      quitAndInstall()
-    } else {
-      downloadUpdate()
-    }
+    if (getUpdateState().downloaded) isQuitting = true
+    startUpdate()
   })
+}
+
+function registerDiscordProtocol(): void {
+  if (!app.isPackaged) return
+  try {
+    app.setAsDefaultProtocolClient(`discord-${DISCORD_CLIENT_ID}`, executablePath(), [])
+  } catch (e) {
+    console.warn('[main] protocol registration failed:', e)
+  }
 }
 
 function quitApp(): void {
@@ -180,11 +191,15 @@ function bootstrap(): void {
     })
 
     initUpdater()
+    registerDiscordProtocol()
     poller.start()
-    maybeAutoCheck(loadSettings().autoCheckUpdates)
 
-    const lang = loadSettings().language
-    tray.notify(t(lang, 'notification_desc'), t(lang, 'notification_title'))
+    const settings = loadSettings()
+    maybeAutoCheck(settings.autoCheckUpdates)
+    if (settings.autostart) setAutostart(true)
+    if (settings.startMinimized) {
+      tray.notify(t(settings.language, 'notification_desc'), t(settings.language, 'notification_title'))
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -193,7 +208,6 @@ function bootstrap(): void {
   })
 
   app.on('window-all-closed', () => {
-    
     if (process.platform !== 'darwin' && !loadSettings().closeToTray) app.quit()
   })
 

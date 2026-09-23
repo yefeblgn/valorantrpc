@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 
-/* ── Tema token'ları (OLED siyah + Tailwind v4 @theme) ── */
 @theme {
   --color-bg: #050506;
   --color-surface: #0a0a0d;
@@ -20,7 +19,6 @@
   --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-/* Accent runtime-override (Görünüm ayarı bunları değiştirir) */
 :root {
   --accent: #ff4655;
   --accent-hover: #e23a48;
@@ -47,7 +45,6 @@ body {
   user-select: none;
 }
 
-/* ── Arka plan aurora (cam panellerin altında bulanıklaşır) ── */
 .app-aurora {
   position: fixed;
   inset: 0;
@@ -64,7 +61,6 @@ body {
     #050506;
 }
 
-/* ── Liquid glass ── */
 .glass {
   background: rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(22px) saturate(150%);
@@ -93,7 +89,6 @@ body {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Accent-tinted glass (aktif öğeler) */
 .glass-accent {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
@@ -106,7 +101,6 @@ body {
   box-shadow: 0 0 18px -2px color-mix(in srgb, var(--accent) 65%, transparent);
 }
 
-/* Sürükleme bölgeleri */
 .drag {
   -webkit-app-region: drag;
 }
@@ -114,7 +108,6 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* İnce scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

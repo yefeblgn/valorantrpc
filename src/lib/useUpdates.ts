@@ -10,7 +10,10 @@ export function useUpdates(): {
 
   useEffect(() => {
     const unsub = window.api.onUpdateState(setInfo)
-    void window.api.checkUpdate().then(setInfo)
+    void window.api.getUpdateState().then((current) => {
+      setInfo(current)
+      if (!current.checkedAt) void window.api.checkUpdate().then(setInfo)
+    })
     return unsub
   }, [])
 

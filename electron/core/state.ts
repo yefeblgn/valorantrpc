@@ -14,6 +14,7 @@ export function idleState(name = '', tag = ''): GameState {
     allyScore: null,
     enemyScore: null,
     agentUuid: '',
+    partyId: '',
     rr: null,
     name,
     tag,
@@ -22,7 +23,6 @@ export function idleState(name = '', tag = ''): GameState {
     queueEntryTime: ''
   }
 }
-
 
 export function signature(s: GameState): string {
   return [
@@ -36,7 +36,8 @@ export function signature(s: GameState): string {
     s.rr,
     s.allyScore,
     s.enemyScore,
-    s.partyState
+    s.partyState,
+    s.partyId
   ].join('|')
 }
 
@@ -50,7 +51,6 @@ export function isCustom(s: GameState): boolean {
     (s.queueId || '').toLowerCase() === 'custom'
   )
 }
-
 
 export function parsePresence(priv: Record<string, unknown> | null): GameState {
   const state = idleState()
@@ -87,6 +87,7 @@ export function parsePresence(priv: Record<string, unknown> | null): GameState {
   state.isIdle = Boolean(priv.isIdle ?? false)
   state.partyState = String(pick('partyState', partyD, priv) || '')
   state.queueEntryTime = String(pick('queueEntryTime', partyD, priv) || '')
+  state.partyId = String(pick('partyId', priv, partyD) || '')
 
   const ally = pick('partyOwnerMatchScoreAllyTeam', priv, partyD)
   const enemy = pick('partyOwnerMatchScoreEnemyTeam', priv, partyD)

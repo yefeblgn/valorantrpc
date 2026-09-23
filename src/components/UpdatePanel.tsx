@@ -1,15 +1,20 @@
 import { motion } from 'framer-motion'
-import { Download, RefreshCw, RotateCw } from 'lucide-react'
+import { Download, ExternalLink, Loader2, RefreshCw, RotateCw } from 'lucide-react'
 import { useT } from '../lib/i18n'
 import { useUpdates } from '../lib/useUpdates'
+
+const PRIMARY =
+  'flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-hover'
 
 export function UpdatePanel(): JSX.Element {
   const t = useT()
   const { info, check, start } = useUpdates()
 
+  const checking = !info || info.checking
   const downloading = !!info?.downloading
   const downloaded = !!info?.downloaded
   const available = !!info?.available
+  const portable = !!info?.portable
   const speedMb = info ? (info.bytesPerSecond / 1024 / 1024).toFixed(1) : '0'
 
   return (
@@ -22,9 +27,10 @@ export function UpdatePanel(): JSX.Element {
         {!downloading && !downloaded && (
           <button
             onClick={check}
-            className="glass-subtle glass-hover flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12.5px] font-semibold text-muted transition hover:text-white"
+            disabled={checking}
+            className="glass-subtle glass-hover flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12.5px] font-semibold text-muted transition hover:text-white disabled:opacity-60"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={13} className={checking ? 'animate-spin' : ''} />
             {t('check_update')}
           </button>
         )}
@@ -36,10 +42,7 @@ export function UpdatePanel(): JSX.Element {
             <span className="text-[12.5px] text-good">
               {t('update_available')} (v{info?.latestVersion})
             </span>
-            <button
-              onClick={start}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-hover"
-            >
+            <button onClick={start} className={PRIMARY}>
               <RotateCw size={13} />
               {t('restart_install')}
             </button>
@@ -60,17 +63,24 @@ export function UpdatePanel(): JSX.Element {
               />
             </div>
           </div>
+        ) : checking ? (
+          <span className="flex items-center gap-2 text-[12.5px] text-muted">
+            <Loader2 size={13} className="animate-spin" />
+            {t('checking')}
+          </span>
         ) : available ? (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[12.5px] font-medium text-warn">
-              {t('update_available')} (v{info?.latestVersion})
-            </span>
-            <button
-              onClick={start}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-hover"
-            >
-              <Download size={13} />
-              {t('download_install')}
+            <div className="min-w-0">
+              <div className="text-[12.5px] font-medium text-warn">
+                {t('update_available')} (v{info?.latestVersion})
+              </div>
+              {portable && (
+                <div className="mt-0.5 text-[11.5px] text-dim">{t('portable_update_desc')}</div>
+              )}
+            </div>
+            <button onClick={start} className={PRIMARY}>
+              {portable ? <ExternalLink size={13} /> : <Download size={13} />}
+              {portable ? t('open_release_page') : t('download_install')}
             </button>
           </div>
         ) : info?.error ? (

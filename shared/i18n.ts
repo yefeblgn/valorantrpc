@@ -1,4 +1,3 @@
-
 import type { Language } from './types'
 
 export const API_LANGUAGE: Record<Language, string> = {
@@ -8,7 +7,6 @@ export const API_LANGUAGE: Record<Language, string> = {
 
 export const STRINGS: Record<Language, Record<string, string>> = {
   tr: {
-    
     app_title: 'ValorantRPC',
     status_idle: 'Valorant bekleniyor…',
     status_connecting: 'Bağlanılıyor…',
@@ -22,16 +20,16 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     connected: 'bağlı',
     disconnected: 'kapalı',
 
-    
     nav_home: 'Ana Sayfa',
     nav_settings: 'Ayarlar',
     nav_about: 'Hakkında',
 
-    
     level: 'Seviye',
     unranked: 'Derecesiz',
     party: 'Parti',
     score: 'Skor',
+    team_hp: 'Takım Canı',
+    hp: 'Can',
     map: 'Harita',
     agent: 'Ajan',
     mode: 'Mod',
@@ -42,14 +40,12 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     no_player_card: 'Oyuncu kartı yok',
     waiting_match: 'Maç bekleniyor — şu an menüde.',
 
-    
     tab_general: 'Genel',
     tab_presence: 'Presence',
     tab_autolock: 'Oto-Kilit',
     tab_appearance: 'Görünüm',
     tab_updates: 'Güncelleme',
 
-    
     rpc_enabled: 'Rich Presence',
     rpc_enabled_desc: 'Discord profilinde durumu göster',
     language: 'Dil',
@@ -65,7 +61,6 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     auto_check_updates: 'Otomatik güncelleme kontrolü',
     auto_check_updates_desc: 'Açılışta yeni sürüm ara',
 
-    
     presence_display: 'Gösterim',
     show_rank: 'Rankı göster',
     show_level: 'Seviyeyi göster',
@@ -80,8 +75,21 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     small_text: 'Küçük görsel yazısı',
     button_label: 'Buton metni',
     button_url: 'Buton bağlantısı',
+    button_url_invalid: 'Geçerli bir https:// bağlantısı gir',
+    discord_invites: 'Discord davetleri',
+    discord_invites_desc:
+      'Lobideyken Discord sohbetindeki + → Oyuna davet et ile arkadaşlarını partine çağır. Bunun için partine bir davet kodu oluşturulur ve lobide buton gizlenir.',
+    join_requests: 'Katılma istekleri',
+    join_request_desc: 'partine katılmak istiyor',
+    accept: 'Kabul et',
+    decline: 'Reddet',
+    join_notice_title: 'Discord daveti',
+    join_request_notice: '{name} partine katılmak istiyor.',
+    join_waiting: 'VALORANT lobisine geçtiğinde partiye otomatik katılacaksın.',
+    join_success: 'Partiye katıldın!',
+    join_requested: 'Katılma isteği gönderildi, parti liderinin kabul etmesi gerekiyor.',
+    join_failed: 'Partiye katılınamadı. Parti dolu ya da artık mevcut değil.',
 
-    
     opt_auto: 'Otomatik (akıllı)',
     opt_map: 'Harita',
     opt_agent: 'Ajan',
@@ -96,16 +104,13 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     opt_agent_name: 'Ajan adı',
     opt_score: 'Skor',
 
-    
     autolock_enabled: 'Oto-Kilit',
     autolock_desc: 'Özel maçta ajanı otomatik kilitle',
     select_agent: 'Ajan Seç',
 
-    
     accent_color: 'Vurgu rengi',
     accent_color_desc: 'Arayüz vurgu rengini değiştir',
 
-    
     current_version: 'Mevcut sürüm',
     check_update: 'Güncelleme kontrol et',
     update_available: 'Güncelleme mevcut',
@@ -116,8 +121,9 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     update_failed: 'Güncelleme başarısız. Tekrar dene.',
     remaining: 'kaldı',
     checking: 'Kontrol ediliyor…',
+    open_release_page: 'İndirme sayfasını aç',
+    portable_update_desc: 'Taşınabilir sürüm, indirme sayfasından güncellenir.',
 
-    
     tray_show: 'Paneli Göster',
     tray_quit: 'Çıkış',
     github: 'GitHub',
@@ -130,13 +136,18 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     tray_hide_title: 'ValorantRPC tepside',
     tray_hide_desc: 'Uygulama arka planda çalışmaya devam ediyor. Tepsi simgesinden aç.',
 
-    
     custom: 'Özel Oyun',
     p_in_menu: 'Menüde',
     p_selecting_agent: 'Ajan Seçiliyor',
     p_lobby: 'Lobide',
     queuing: 'Sırada',
-    p_in_game: 'Oyunda'
+    p_in_game: 'Oyunda',
+    playing: 'Oynuyor',
+    ask_to_join: 'Katılmayı İste',
+    ui_error: 'Bir şeyler ters gitti.',
+    retry: 'Yeniden dene',
+    minimize: 'Küçült',
+    close: 'Kapat'
   },
   en: {
     app_title: 'ValorantRPC',
@@ -160,6 +171,8 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     unranked: 'Unranked',
     party: 'Party',
     score: 'Score',
+    team_hp: 'Team HP',
+    hp: 'HP',
     map: 'Map',
     agent: 'Agent',
     mode: 'Mode',
@@ -205,6 +218,20 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     small_text: 'Small image text',
     button_label: 'Button label',
     button_url: 'Button link',
+    button_url_invalid: 'Enter a valid https:// link',
+    discord_invites: 'Discord invites',
+    discord_invites_desc:
+      'Invite friends to your party from Discord chat (+ → Invite to play) while in the lobby. A party invite code is created for this and the button is hidden in the lobby.',
+    join_requests: 'Join requests',
+    join_request_desc: 'wants to join your party',
+    accept: 'Accept',
+    decline: 'Decline',
+    join_notice_title: 'Discord invite',
+    join_request_notice: '{name} wants to join your party.',
+    join_waiting: "You'll join the party automatically once you're in the VALORANT lobby.",
+    join_success: 'You joined the party!',
+    join_requested: 'Join request sent, the party leader needs to accept it.',
+    join_failed: "Couldn't join the party. It may be full or no longer exist.",
 
     opt_auto: 'Automatic (smart)',
     opt_map: 'Map',
@@ -237,6 +264,8 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     update_failed: 'Update failed. Try again.',
     remaining: 'left',
     checking: 'Checking…',
+    open_release_page: 'Open download page',
+    portable_update_desc: 'The portable build is updated from the download page.',
 
     tray_show: 'Show Panel',
     tray_quit: 'Quit',
@@ -255,7 +284,13 @@ export const STRINGS: Record<Language, Record<string, string>> = {
     p_selecting_agent: 'Selecting Agent',
     p_lobby: 'In Lobby',
     queuing: 'In Queue',
-    p_in_game: 'In Game'
+    p_in_game: 'In Game',
+    playing: 'Playing',
+    ask_to_join: 'Ask to Join',
+    ui_error: 'Something went wrong.',
+    retry: 'Try again',
+    minimize: 'Minimize',
+    close: 'Close'
   }
 }
 

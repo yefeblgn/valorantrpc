@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs'
+import { readFile } from 'fs/promises'
 import type { Language } from '@shared/types'
 import { valorantLogPath } from '../constants'
 import type { LocalAuth } from './localAuth'
@@ -16,20 +16,13 @@ const REGION_TO_SHARD: Record<string, string> = {
 const GLZ_RE = /glz-([\w-]+?)-1\.([\w-]+)\.a\.pvp\.net/
 const PD_RE = /https:\/\/pd\.([\w-]+)\.a\.pvp\.net/
 
-
 export async function detectRegionShard(auth: LocalAuth): Promise<[string, string]> {
   try {
-    const path = valorantLogPath()
-    if (existsSync(path)) {
-      const txt = readFileSync(path, 'utf-8')
-      const m = txt.match(GLZ_RE)
-      if (m) return [m[1], m[2]]
-      const mpd = txt.match(PD_RE)
-      if (mpd) {
-        const shard = mpd[1]
-        return [shard, shard]
-      }
-    }
+    const txt = await readFile(valorantLogPath(), 'utf-8')
+    const m = txt.match(GLZ_RE)
+    if (m) return [m[1], m[2]]
+    const mpd = txt.match(PD_RE)
+    if (mpd) return [mpd[1], mpd[1]]
   } catch (e) {
     console.debug('[region] log parse failed:', e)
   }

@@ -92,7 +92,6 @@ export class AppTray {
     try {
       this.tray.displayBalloon({ title: title ?? APP_NAME, content: message })
     } catch {
-      
     }
   }
 

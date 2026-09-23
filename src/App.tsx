@@ -14,12 +14,16 @@ export default function App(): JSX.Element {
   const [page, setPage] = useState<PageKey>('home')
   const ready = useStore((s) => s.ready)
   const accent = useStore((s) => s.settings?.accentColor ?? '#ff4655')
+  const language = useStore((s) => s.settings?.language ?? 'en')
 
   useEffect(() => {
     void initStore()
   }, [])
 
-  
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
   useEffect(() => {
     const root = document.documentElement
     root.style.setProperty('--color-accent', accent)
