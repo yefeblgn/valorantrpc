@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AgentOption, Settings, Snapshot, UpdateInfo } from '@shared/types'
+import type {
+  AgentOption,
+  MatchReport,
+  Settings,
+  Snapshot,
+  UpdateInfo,
+  WindowInfo
+} from '@shared/types'
 import { IPC } from '@shared/ipc'
 
 type Unsubscribe = () => void
@@ -20,8 +27,7 @@ const api = {
   getSettings: (): Promise<Settings> => ipcRenderer.invoke(IPC.settingsGet),
   setSettings: (patch: Partial<Settings>): Promise<Settings> =>
     ipcRenderer.invoke(IPC.settingsSet, patch),
-  onSettingsChanged: (cb: (s: Settings) => void): Unsubscribe =>
-    subscribe(IPC.settingsChanged, cb),
+  onSettingsChanged: (cb: (s: Settings) => void): Unsubscribe => subscribe(IPC.settingsChanged, cb),
 
   getState: (): Promise<Snapshot> => ipcRenderer.invoke(IPC.stateGet),
   onStateChanged: (cb: (s: Snapshot) => void): Unsubscribe => subscribe(IPC.stateChanged, cb),
@@ -33,7 +39,18 @@ const api = {
   getUpdateState: (): Promise<UpdateInfo> => ipcRenderer.invoke(IPC.updateGet),
   checkUpdate: (): Promise<UpdateInfo> => ipcRenderer.invoke(IPC.updateCheck),
   startUpdate: (): void => ipcRenderer.send(IPC.updateStart),
-  onUpdateState: (cb: (u: UpdateInfo) => void): Unsubscribe => subscribe(IPC.updateState, cb)
+  onUpdateState: (cb: (u: UpdateInfo) => void): Unsubscribe => subscribe(IPC.updateState, cb),
+
+  getMatch: (): Promise<MatchReport | null> => ipcRenderer.invoke(IPC.matchGet),
+  onMatchChanged: (cb: (r: MatchReport | null) => void): Unsubscribe =>
+    subscribe(IPC.matchChanged, cb),
+  toggleOverlay: (): void => ipcRenderer.send(IPC.overlayToggle),
+  getOverlayVisible: (): Promise<boolean> => ipcRenderer.invoke(IPC.overlayGetVisible),
+  onOverlayVisible: (cb: (visible: boolean) => void): Unsubscribe =>
+    subscribe(IPC.overlayVisible, cb),
+  pauseHotkey: (paused: boolean): void => ipcRenderer.send(IPC.hotkeyPause, paused),
+  getHotkeyStatus: (): Promise<boolean> => ipcRenderer.invoke(IPC.hotkeyStatus),
+  getWindowInfo: (): Promise<WindowInfo> => ipcRenderer.invoke(IPC.windowInfo)
 }
 
 export type AppApi = typeof api

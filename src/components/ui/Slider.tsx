@@ -25,10 +25,10 @@ export function Slider({
       onValueChange={(v) => onChange(v[0])}
       onValueCommit={(v) => onCommit?.(v[0])}
     >
-      <RSlider.Track className="relative h-1 grow rounded-full bg-white/10">
-        <RSlider.Range className="absolute h-full rounded-full bg-accent" />
+      <RSlider.Track className="relative h-[3px] grow bg-line-2">
+        <RSlider.Range className="absolute h-full bg-accent" />
       </RSlider.Track>
-      <RSlider.Thumb className="block h-4 w-4 rounded-full bg-white shadow ring-2 ring-accent outline-none transition-transform hover:scale-110" />
+      <RSlider.Thumb className="block h-3 w-3 rotate-45 border-2 border-accent bg-white outline-none transition-transform hover:scale-125 focus-visible:scale-125" />
     </RSlider.Root>
   )
 }

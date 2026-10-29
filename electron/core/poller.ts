@@ -7,19 +7,30 @@ import type {
   GameState,
   JoinRequest,
   Language,
+  SessionState,
   Settings,
   Snapshot
 } from '@shared/types'
 import { DISCORD_CLIENT_ID, riotLockfilePath } from '../constants'
-import { RiotApi } from '../riot/api'
+import { RiotApi, type PartyInfo } from '../riot/api'
 import { Content } from '../riot/content'
 import { LocalAuth, RiotNotRunning } from '../riot/localAuth'
 import { detectLocale, detectPlayer, detectRegionShard } from '../riot/region'
 import { DiscordRPC } from './discordRpc'
+import { MatchStats, type MatchTarget } from './matchStats'
 import { buildDisplay, buildPresence, canInvite, type PartyInvite } from './presence'
-import { idleState, isCustom, parsePresence, signature } from './state'
+import {
+  idleState,
+  inRange,
+  isCustom,
+  isMatchFound,
+  isQueuing,
+  parsePresence,
+  signature
+} from './state'
 
 const INGAME_REFRESH = 10_000
+const RANGE_PARTY_REFRESH = 5_000
 const MMR_REFRESH = 300_000
 const INVITE_RETRY = 60_000
 const JOIN_REQUEST_TTL = 30_000
@@ -45,6 +56,13 @@ interface JoinTarget {
   partyId: string
 }
 
+interface RangeParty {
+  partyId: string
+  presenceState: string
+  at: number
+  info: PartyInfo | null
+}
+
 function hashId(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 32)
 }
@@ -58,6 +76,7 @@ function parseSecret(secret: string): JoinTarget | null {
 export class Poller extends EventEmitter {
   readonly content: Content
   readonly discord: DiscordRPC
+  readonly match: MatchStats
 
   private stopped = true
   private state: GameState
@@ -70,6 +89,9 @@ export class Poller extends EventEmitter {
   private startTs = Math.floor(Date.now() / 1000)
   private lastSignature: string | null = null
   private lastIngameFetch = 0
+  private matchId = ''
+  private lastLoop: SessionState | null = null
+  private rangeParty: RangeParty | null = null
   private lastMmrFetch = 0
   private errorStreak = 0
   private presenceErrors = 0
@@ -89,6 +111,8 @@ export class Poller extends EventEmitter {
     const s = this.getSettings()
     this.content = new Content(s.language)
     this.discord = new DiscordRPC(DISCORD_CLIENT_ID)
+    this.match = new MatchStats(this.content)
+    this.match.on('report', (report) => this.emit('match', report))
     this.state = idleState()
     this.discord.on('disconnected', () => {
       this.discordConnected = false
@@ -253,23 +277,29 @@ export class Poller extends EventEmitter {
     state.tag = this.playerTag
 
     const now = Date.now()
+    const loopChanged = state.sessionState !== this.lastLoop
+    this.lastLoop = state.sessionState
     const nearMatch =
       state.sessionState === 'ingame' || state.sessionState === 'pregame' || !!state.mapPath
     if (nearMatch) {
-      const cacheOk = now - this.lastIngameFetch < INGAME_REFRESH
+      const cacheOk = !loopChanged && now - this.lastIngameFetch < INGAME_REFRESH
       if (cacheOk) {
         if (this.state.sessionState === 'ingame' || this.state.sessionState === 'pregame') {
           state.sessionState = this.state.sessionState
           state.agentUuid = this.state.agentUuid || state.agentUuid
+          state.provisioningFlow = this.state.provisioningFlow || state.provisioningFlow
+          state.mapPath = state.mapPath || this.state.mapPath
         }
       } else {
         this.lastIngameFetch = now
         const phase = await api.matchPhase()
+        this.matchId = phase?.match_id ?? ''
         if (phase) {
           state.sessionState = phase.phase
           state.agentUuid = phase.agent || this.state.agentUuid
           if (phase.queue_id) state.queueId = phase.queue_id
           if (phase.provisioning_flow) state.provisioningFlow = phase.provisioning_flow
+          if (phase.map && !state.mapPath) state.mapPath = phase.map
         } else if (
           (state.sessionState === 'ingame' || state.sessionState === 'pregame') &&
           this.state.agentUuid
@@ -278,6 +308,18 @@ export class Poller extends EventEmitter {
         }
       }
     }
+
+    if (!nearMatch) this.matchId = ''
+
+    if (inRange(state) && state.partyId) await this.syncRangeParty(api, state, now)
+    else this.rangeParty = null
+
+    this.match.sync(api, this.matchTarget(state, settings), {
+      puuid: this.auth?.puuid ?? '',
+      partyId: state.partyId
+    })
+
+    await this.content.ensureKnown(state.agentUuid, state.mapPath)
 
     if (state.competitiveTier > 0) {
       if (this.state.rr !== null && now - this.lastMmrFetch < MMR_REFRESH) {
@@ -304,7 +346,9 @@ export class Poller extends EventEmitter {
       await this.handleAutolock(api, settings.autolockAgent)
     }
 
-    if (settings.discordInvites && canInvite(state)) await this.ensureInvite(api, state.partyId)
+    if (settings.discordInvites && !settings.streamerMode && canInvite(state)) {
+      await this.ensureInvite(api, state.partyId)
+    }
 
     if (this.state.sessionState === 'idle' && state.sessionState !== 'idle') {
       this.startTs = Math.floor(now / 1000)
@@ -314,7 +358,10 @@ export class Poller extends EventEmitter {
     this.valorantConnected = true
     this.state = state
     this.pushPresence(state)
-    if (!wasConnected) this.notify()
+    if (!wasConnected) {
+      this.notify()
+      this.emit('detected', { name: this.playerName, tag: this.playerTag })
+    }
 
     if (this.pendingJoin) {
       if (this.pendingJoin.expiresAt < now) this.pendingJoin = null
@@ -355,6 +402,10 @@ export class Poller extends EventEmitter {
     this.valorantConnected = false
     this.state = idleState(this.playerName, this.playerTag)
     this.lastSignature = null
+    this.lastLoop = null
+    this.rangeParty = null
+    this.matchId = ''
+    this.match.clear()
     this.invite = null
     if (!changed) return
     if (this.discordConnected) this.discord.clear()
@@ -367,6 +418,33 @@ export class Poller extends EventEmitter {
     this.presenceErrors = 0
     this.missingPresence = 0
     this.clearSession()
+  }
+
+  private matchTarget(state: GameState, settings: Settings): MatchTarget | null {
+    if (!settings.overlayEnabled || !this.matchId || inRange(state)) return null
+    if (state.sessionState !== 'pregame' && state.sessionState !== 'ingame') return null
+    return { phase: state.sessionState, matchId: this.matchId }
+  }
+
+  private async syncRangeParty(api: RiotApi, state: GameState, now: number): Promise<void> {
+    const cached = this.rangeParty
+    const stale =
+      !cached ||
+      cached.partyId !== state.partyId ||
+      cached.presenceState !== state.partyState ||
+      now - cached.at >= RANGE_PARTY_REFRESH
+    if (stale) {
+      this.rangeParty = {
+        partyId: state.partyId,
+        presenceState: state.partyState,
+        at: now,
+        info: await api.partyInfo(state.partyId)
+      }
+    }
+    const info = this.rangeParty?.info
+    if (!info) return
+    if (info.state) state.partyState = info.state
+    if (info.queueId && (isQueuing(state) || isMatchFound(state))) state.queueId = info.queueId
   }
 
   private currentInvite(): PartyInvite | null {
@@ -474,7 +552,11 @@ export class Poller extends EventEmitter {
       const rm = await api.remoteGet(`${api.glz}/pregame/v1/matches/${matchId}`)
       if (rm.status !== 200) return
       const matchData = rm.data ?? {}
-      if (!String(matchData.ProvisioningFlowID ?? '').toLowerCase().includes('custom')) {
+      if (
+        !String(matchData.ProvisioningFlowID ?? '')
+          .toLowerCase()
+          .includes('custom')
+      ) {
         this.lastAutolockedMatch = matchId
         return
       }

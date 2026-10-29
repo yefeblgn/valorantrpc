@@ -1,36 +1,26 @@
-import { motion } from 'framer-motion'
-
 export function Segmented<T extends string>({
   value,
   options,
-  onChange,
-  id = 'seg'
+  onChange
 }: {
   value: T
   options: { value: T; label: string }[]
   onChange: (v: T) => void
-  id?: string
 }): JSX.Element {
   return (
-    <div className="glass-subtle flex rounded-xl p-0.5 border border-white/6">
+    <div className="flex gap-0.5 rounded-[2px] border border-line-2 bg-bg p-0.5">
       {options.map((o) => {
         const active = value === o.value
         return (
           <button
             key={o.value}
             onClick={() => onChange(o.value)}
-            className="relative px-3.5 py-1.5 text-[12px] font-semibold rounded-lg overflow-hidden"
+            aria-pressed={active}
+            className={`display h-7 rounded-[1px] px-3.5 text-[13px] tracking-[0.1em] transition-colors duration-150 ${
+              active ? 'bg-accent text-white' : 'text-dim hover:bg-hover hover:text-muted'
+            }`}
           >
-            {active && (
-              <motion.span
-                layoutId={`segmented-${id}`}
-                className="glass-accent absolute inset-0 rounded-lg"
-                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              />
-            )}
-            <span className={`relative z-10 ${active ? 'text-white' : 'text-muted'}`}>
-              {o.label}
-            </span>
+            {o.label}
           </button>
         )
       })}

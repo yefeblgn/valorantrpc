@@ -28,10 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
           <div className="text-[13px] text-muted">{t(lang, 'ui_error')}</div>
-          <button
-            onClick={this.reset}
-            className="glass glass-hover rounded-lg px-4 py-2 text-[12.5px] font-medium text-text"
-          >
+          <button onClick={this.reset} className="btn btn-ghost">
             {t(lang, 'retry')}
           </button>
         </div>

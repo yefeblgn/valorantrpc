@@ -7,7 +7,11 @@ import { webClient } from '../lib/http'
 
 const CACHE_TTL = 12 * 3600 * 1000
 const RETRY_DELAY = 60_000
+const VERSION_TIMEOUT = 3000
+const NEW_AGENT_WINDOW = 45 * 24 * 3600 * 1000
 const STANDARD_MODE_UUID = '96bd3920-4f36-d026-2b28-c683eb0bcac5'
+const RANGE_MODE_UUID = 'e2dc3878-4fe5-d132-28f8-3d8c259efcc6'
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000'
 
 const MODE_UUID: Record<string, string> = {
   competitive: STANDARD_MODE_UUID,
@@ -66,6 +70,17 @@ const MODE_NAME: Record<string, Record<Language, string>> = {
   '': { tr: 'Lobide', en: 'In Lobby' }
 }
 
+interface AgentEntry {
+  name: string
+  role: string
+  released: number
+}
+interface ApiAgent {
+  uuid: string
+  displayName?: string
+  releaseDate?: string
+  role?: { displayName?: string } | null
+}
 interface MapEntry {
   name: string
   uuid: string
@@ -74,33 +89,120 @@ interface TierEntry {
   name: string
   icon: string | null
 }
+interface SeasonEntry {
+  name: string
+  parent: string
+  start: number
+  end: number
+  act: boolean
+}
+interface ApiSeason {
+  uuid: string
+  displayName?: string
+  type?: string | null
+  startTime?: string
+  endTime?: string
+  parentUuid?: string | null
+}
 
 export class Content {
-  private agents: Record<string, string> | null = null
+  private agents: Record<string, AgentEntry> | null = null
   private maps: Record<string, MapEntry> | null = null
   private tiers: Record<number, TierEntry> | null = null
+  private seasons: Record<string, SeasonEntry> | null = null
+  private seasonsLoading: Promise<void> | null = null
   private retryAt = 0
+  private staleRetryAt = 0
+  private loading: { language: Language; promise: Promise<void> } | null = null
 
   constructor(public language: Language = 'en') {}
 
   setLanguage(language: Language): void {
     if (language !== this.language) {
       this.language = language
-      this.agents = this.maps = this.tiers = null
+      this.agents = this.maps = this.tiers = this.seasons = null
       this.retryAt = 0
+      this.staleRetryAt = 0
     }
   }
 
   async ensureAll(): Promise<void> {
-    if (Date.now() < this.retryAt) return
-    await Promise.all([this.ensureAgents(), this.ensureMaps(), this.ensureTiers()])
-    const empty = (o: object | null): boolean => !!o && Object.keys(o).length === 0
-    if (empty(this.agents) || empty(this.maps) || empty(this.tiers)) {
-      if (empty(this.agents)) this.agents = null
-      if (empty(this.maps)) this.maps = null
-      if (empty(this.tiers)) this.tiers = null
-      this.retryAt = Date.now() + RETRY_DELAY
+    if (!this.loading || this.loading.language !== this.language) {
+      const language = this.language
+      const promise = this.loadAll(language).finally(() => {
+        if (this.loading?.promise === promise) this.loading = null
+      })
+      this.loading = { language, promise }
     }
+    return this.loading.promise
+  }
+
+  private async loadAll(language: Language): Promise<void> {
+    if (Date.now() < this.retryAt) return
+    if (this.agents !== null && this.maps !== null && this.tiers !== null) return
+    const version = await this.latestVersion()
+    const force = !!version && version !== this.cachedVersion()
+    const [agents, maps, tiers] = await Promise.all([
+      this.agents ?? this.loadAgents(force),
+      this.maps ?? this.loadMaps(force),
+      this.tiers ?? this.loadTiers(force)
+    ])
+    if (language !== this.language) return
+    const filled = (o: object): boolean => Object.keys(o).length > 0
+    this.agents = filled(agents) ? agents : null
+    this.maps = filled(maps) ? maps : null
+    this.tiers = filled(tiers) ? tiers : null
+    if (!this.agents || !this.maps || !this.tiers) {
+      this.retryAt = Date.now() + RETRY_DELAY
+      return
+    }
+    if (force) this.saveVersion(version)
+  }
+
+  private async latestVersion(): Promise<string> {
+    try {
+      const r = await webClient.get(`${VALORANT_API}/version`, { timeout: VERSION_TIMEOUT })
+      if (r.status === 200) return String(r.data?.data?.version ?? '')
+    } catch (e) {
+      console.debug('[content] version check failed:', e)
+    }
+    return ''
+  }
+
+  private cachedVersion(): string {
+    const vf = this.cacheFile('version')
+    if (!existsSync(vf)) return ''
+    try {
+      return String(JSON.parse(readFileSync(vf, 'utf-8')).version ?? '')
+    } catch {
+      return ''
+    }
+  }
+
+  private saveVersion(version: string): void {
+    try {
+      writeFileSync(this.cacheFile('version'), JSON.stringify({ version }), 'utf-8')
+    } catch (e) {
+      console.debug('[content] version save failed:', e)
+    }
+  }
+
+  async ensureKnown(agentUuid: string, mapPath: string): Promise<void> {
+    if (Date.now() < this.staleRetryAt) return
+    const agent = agentUuid.toLowerCase().trim()
+    const map = mapPath.toLowerCase().trim()
+    const agentMissing = !!this.agents && !!agent && agent !== EMPTY_UUID && !(agent in this.agents)
+    const mapMissing = !!this.maps && !!map && !(map in this.maps)
+    if (!agentMissing && !mapMissing) return
+    this.staleRetryAt = Date.now() + RETRY_DELAY
+    const language = this.language
+    const [agents, maps] = await Promise.all([
+      agentMissing ? this.loadAgents(true) : null,
+      mapMissing ? this.loadMaps(true) : null
+    ])
+    if (language !== this.language) return
+    if (agents && Object.keys(agents).length) this.agents = agents
+    if (maps && Object.keys(maps).length) this.maps = maps
   }
 
   private cacheFile(name: string): string {
@@ -109,15 +211,14 @@ export class Content {
     return join(dir, `${name}_${this.language}.json`)
   }
 
-  private async fetch(name: string, path: string): Promise<unknown> {
+  private async fetch(name: string, path: string, force = false): Promise<unknown> {
     const cf = this.cacheFile(name)
-    if (existsSync(cf)) {
+    if (!force && existsSync(cf)) {
       try {
         if (Date.now() - statSync(cf).mtimeMs < CACHE_TTL) {
           return JSON.parse(readFileSync(cf, 'utf-8'))
         }
-      } catch {
-      }
+      } catch {}
     }
     try {
       const sep = path.includes('?') ? '&' : '?'
@@ -134,72 +235,122 @@ export class Content {
     if (existsSync(cf)) {
       try {
         return JSON.parse(readFileSync(cf, 'utf-8'))
-      } catch {
-      }
+      } catch {}
     }
     return null
   }
 
-  private async ensureAgents(): Promise<Record<string, string>> {
-    if (this.agents === null) {
-      this.agents = {}
-      const data = (await this.fetch('agents', '/agents?isPlayableCharacter=true')) as
-        | Array<Record<string, string>>
-        | null
-      for (const a of data ?? []) {
-        this.agents[a.uuid.toLowerCase()] = a.displayName ?? ''
+  private async loadAgents(force: boolean): Promise<Record<string, AgentEntry>> {
+    const agents: Record<string, AgentEntry> = {}
+    const data = (await this.fetch('agents', '/agents?isPlayableCharacter=true', force)) as
+      | ApiAgent[]
+      | null
+    for (const a of data ?? []) {
+      agents[a.uuid.toLowerCase()] = {
+        name: a.displayName ?? '',
+        role: a.role?.displayName ?? '',
+        released: Date.parse(a.releaseDate ?? '') || 0
       }
     }
-    return this.agents
+    return agents
   }
 
-  private async ensureMaps(): Promise<Record<string, MapEntry>> {
-    if (this.maps === null) {
-      this.maps = {}
-      const data = (await this.fetch('maps', '/maps')) as Array<Record<string, string>> | null
-      for (const m of data ?? []) {
-        const url = (m.mapUrl ?? '').toLowerCase()
-        if (url) this.maps[url] = { name: m.displayName ?? '', uuid: m.uuid ?? '' }
-      }
+  private async loadMaps(force: boolean): Promise<Record<string, MapEntry>> {
+    const maps: Record<string, MapEntry> = {}
+    const data = (await this.fetch('maps', '/maps', force)) as Array<Record<string, string>> | null
+    for (const m of data ?? []) {
+      const url = (m.mapUrl ?? '').toLowerCase()
+      if (url) maps[url] = { name: m.displayName ?? '', uuid: m.uuid ?? '' }
     }
-    return this.maps
+    return maps
   }
 
-  private async ensureTiers(): Promise<Record<number, TierEntry>> {
-    if (this.tiers === null) {
-      this.tiers = {}
-      const data = (await this.fetch('competitivetiers', '/competitivetiers')) as Array<{
-        tiers: Array<Record<string, string>>
-      }> | null
-      if (data && data.length) {
-        for (const tinfo of data[data.length - 1].tiers ?? []) {
-          const tierNum = Number(tinfo.tier)
-          this.tiers[tierNum] = {
-            name: title(tinfo.tierName ?? ''),
-            icon: (tinfo.largeIcon as string) || null
-          }
+  private async loadTiers(force: boolean): Promise<Record<number, TierEntry>> {
+    const tiers: Record<number, TierEntry> = {}
+    const data = (await this.fetch('competitivetiers', '/competitivetiers', force)) as Array<{
+      tiers: Array<Record<string, string>>
+    }> | null
+    if (data && data.length) {
+      for (const tinfo of data[data.length - 1].tiers ?? []) {
+        tiers[Number(tinfo.tier)] = {
+          name: title(tinfo.tierName ?? '', apiLanguage(this.language)),
+          icon: (tinfo.largeIcon as string) || null
         }
       }
     }
-    return this.tiers
+    return tiers
+  }
+
+  async ensureSeasons(): Promise<void> {
+    if (this.seasons) return
+    if (!this.seasonsLoading) {
+      const language = this.language
+      this.seasonsLoading = this.loadSeasons()
+        .then((seasons) => {
+          if (language === this.language && Object.keys(seasons).length) this.seasons = seasons
+        })
+        .finally(() => {
+          this.seasonsLoading = null
+        })
+    }
+    return this.seasonsLoading
+  }
+
+  private async loadSeasons(): Promise<Record<string, SeasonEntry>> {
+    const seasons: Record<string, SeasonEntry> = {}
+    const data = (await this.fetch('seasons', '/seasons')) as ApiSeason[] | null
+    for (const s of data ?? []) {
+      seasons[s.uuid.toLowerCase()] = {
+        name: s.displayName ?? '',
+        parent: (s.parentUuid ?? '').toLowerCase(),
+        start: Date.parse(s.startTime ?? '') || 0,
+        end: Date.parse(s.endTime ?? '') || 0,
+        act: (s.type ?? '').endsWith('::Act')
+      }
+    }
+    return seasons
+  }
+
+  currentAct(now = Date.now()): string {
+    for (const [id, s] of Object.entries(this.seasons ?? {})) {
+      if (s.act && s.start <= now && now < s.end) return id
+    }
+    return ''
+  }
+
+  seasonStart(id: string): number {
+    return this.seasons?.[id.toLowerCase()]?.start ?? 0
+  }
+
+  actLabel(id: string): string {
+    const season = this.seasons?.[id.toLowerCase()]
+    if (!season) return ''
+    const parent = this.seasons?.[season.parent]?.name ?? ''
+    return parent ? `${parent} · ${season.name}` : season.name
   }
 
   playableAgents(): AgentOption[] {
-    const dict = this.agents ?? {}
-    return Object.entries(dict)
-      .map(([uuid, name]) => ({ uuid, name }))
+    const now = Date.now()
+    return Object.entries(this.agents ?? {})
+      .map(([uuid, a]) => ({
+        uuid,
+        name: a.name,
+        role: a.role,
+        icon: `${MEDIA}/agents/${uuid}/displayicon.png`,
+        isNew: a.released > 0 && now - a.released < NEW_AGENT_WINDOW
+      }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }
 
   agentName(uuid: string | null | undefined): string {
     if (!uuid) return ''
-    return (this.agents ?? {})[uuid.toLowerCase()] ?? ''
+    return (this.agents ?? {})[uuid.toLowerCase()]?.name ?? ''
   }
 
   agentIcon(uuid: string | null | undefined): string | null {
     if (!uuid) return null
     const u = uuid.toLowerCase().trim()
-    if (u === '' || u === '00000000-0000-0000-0000-000000000000') return null
+    if (u === '' || u === EMPTY_UUID) return null
     if (!(u in (this.agents ?? {}))) return null
     return `${MEDIA}/agents/${u}/displayicon.png`
   }
@@ -238,7 +389,9 @@ export class Content {
       return names[this.language] ?? names.en
     }
     const q = (queueId ?? '').trim()
-    return q ? title(q.replace(/_/g, ' ')) : MODE_NAME[''][this.language] ?? 'In Lobby'
+    return q
+      ? title(q.replace(/_/g, ' '), apiLanguage(this.language))
+      : (MODE_NAME[''][this.language] ?? 'In Lobby')
   }
 
   modeIcon(queueId: string | null | undefined): string | null {
@@ -254,6 +407,10 @@ export class Content {
     const uuid = MODE_UUID[key]
     if (!uuid || uuid === STANDARD_MODE_UUID) return null
     return `${MEDIA}/gamemodes/${uuid}/displayicon.png`
+  }
+
+  rangeIcon(): string {
+    return `${MEDIA}/gamemodes/${RANGE_MODE_UUID}/displayicon.png`
   }
 
   modeArt(queueId: string | null | undefined): string | null {
@@ -275,6 +432,9 @@ export class Content {
   }
 }
 
-function title(s: string): string {
-  return s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+function title(s: string, locale: string): string {
+  return s
+    .split(/(\s+)/)
+    .map((w) => w.charAt(0).toLocaleUpperCase(locale) + w.slice(1).toLocaleLowerCase(locale))
+    .join('')
 }

@@ -17,6 +17,8 @@ export const CLIENT_PLATFORM =
 export const FALLBACK_CLIENT_VERSION = 'release-09.00-shipping-9-0000000'
 export const FALLBACK_LARGE_IMAGE = 'valorant_logo'
 export const APP_NAME = 'ValorantRPC'
+export const APP_TITLE = 'ValorantRPC by BLGN Studios'
+export const APP_ID = 'com.yefeblgn.valorantrpc'
 
 function getLocalAppData(): string {
   if (process.platform === 'win32') {

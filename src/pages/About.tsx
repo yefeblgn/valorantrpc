@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Github, Bug, Heart } from 'lucide-react'
+import { Bug, Github, Heart } from 'lucide-react'
 import { useT } from '../lib/i18n'
 import { UpdatePanel } from '../components/UpdatePanel'
+import { PageHeader, SectionTitle } from '../components/Card'
+import { AppLogo, STUDIO, StudioMark, StudioTag } from '../components/brand'
 
 const GITHUB_URL = 'https://github.com/yefeblgn/valorantrpc'
 
@@ -13,64 +15,54 @@ export function About(): JSX.Element {
   }, [])
 
   return (
-    <div className="flex max-w-[600px] flex-col gap-5 p-6">
-      <div className="flex items-center gap-4">
-        <svg width="52" height="52" viewBox="0 0 100 100" aria-hidden>
-          <circle cx="50" cy="50" r="48" fill="var(--accent)" />
-          <polygon points="25,26 34,26 44,52 44,78" fill="#fff" fillOpacity="0.95" />
-          <polygon points="75,26 66,26 56,52 56,78" fill="#fff" fillOpacity="0.95" />
-        </svg>
-        <div>
-          <div className="text-xl font-bold">
-            Valorant<span className="text-accent">RPC</span>
+    <div className="flex max-w-[680px] flex-col gap-5 p-6">
+      <PageHeader title={t('nav_about')} />
+
+      <div className="panel ticks p-6">
+        <div className="flex items-center gap-4">
+          <AppLogo size={58} />
+          <div>
+            <div className="display text-[36px] tracking-[0.04em]">
+              Valorant<span className="text-accent">RPC</span>
+            </div>
+            <StudioTag size={16} className="mt-1" />
+            <div className="mt-2 flex items-center gap-2.5 text-[13px] text-muted">
+              <span className="display border border-line-2 px-1.5 py-0.5 text-[12px] normal-case tracking-[0.1em] text-text">
+                v{version}
+              </span>
+              {t('about_tagline')}
+            </div>
           </div>
-          <div className="mt-0.5 text-[12px] text-muted">
-            v{version} · {t('about_tagline')}
-          </div>
+        </div>
+        <p className="mt-5 text-[14px] leading-relaxed text-muted">{t('about_desc')}</p>
+        <div className="mt-5 flex gap-2.5">
+          <button onClick={() => window.api.openExternal(GITHUB_URL)} className="btn btn-ghost">
+            <Github size={14} />
+            {t('github')}
+          </button>
+          <button
+            onClick={() => window.api.openExternal(`${GITHUB_URL}/issues`)}
+            className="btn btn-ghost"
+          >
+            <Bug size={14} />
+            {t('issues')}
+          </button>
         </div>
       </div>
 
-      <p className="text-[13px] leading-relaxed text-muted">{t('about_desc')}</p>
+      <section>
+        <SectionTitle>{t('tab_updates')}</SectionTitle>
+        <UpdatePanel />
+      </section>
 
-      <UpdatePanel />
-
-      <div className="flex gap-2.5">
-        <LinkButton
-          icon={<Github size={15} />}
-          label={t('github')}
-          onClick={() => window.api.openExternal(GITHUB_URL)}
-        />
-        <LinkButton
-          icon={<Bug size={15} />}
-          label={t('issues')}
-          onClick={() => window.api.openExternal(`${GITHUB_URL}/issues`)}
-        />
-      </div>
-
-      <div className="flex items-center gap-1.5 text-[11.5px] text-dim">
-        Made by <Heart size={12} className="text-accent" fill="currentColor" /> yefeblgn · MIT
-        License
+      <div className="flex items-center gap-2.5 text-[12.5px] text-dim">
+        <StudioMark size={18} className="opacity-70" />
+        <span>
+          © 2026 {STUDIO} · Made by{' '}
+          <Heart size={12} className="inline text-accent" fill="currentColor" /> yefeblgn · MIT
+          License
+        </span>
       </div>
     </div>
-  )
-}
-
-function LinkButton({
-  icon,
-  label,
-  onClick
-}: {
-  icon: JSX.Element
-  label: string
-  onClick: () => void
-}): JSX.Element {
-  return (
-    <button
-      onClick={onClick}
-      className="glass-subtle glass-hover flex items-center gap-2 rounded-xl px-3.5 py-2 text-[12.5px] font-medium text-muted transition hover:text-white"
-    >
-      {icon}
-      {label}
-    </button>
   )
 }

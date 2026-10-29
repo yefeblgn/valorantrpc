@@ -101,6 +101,7 @@ function ImageStack({ presence }: { presence: BuiltPresence }): JSX.Element {
         <img
           src={presence.smallImage}
           alt=""
+          decoding="async"
           className="absolute -bottom-1.5 -right-1.5 h-[24px] w-[24px] rounded-full bg-[#232428] ring-[3px] ring-[#232428]"
         />
       )}
@@ -123,7 +124,13 @@ function PreviewImage({
 
   if (isUrl(src) && ok) {
     return (
-      <img src={src} alt="" onError={() => setOk(false)} className={`object-cover ${className}`} />
+      <img
+        src={src}
+        alt=""
+        decoding="async"
+        onError={() => setOk(false)}
+        className={`object-cover ${className}`}
+      />
     )
   }
 

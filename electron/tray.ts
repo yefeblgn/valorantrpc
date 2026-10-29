@@ -1,6 +1,6 @@
-import { Menu, Tray, nativeImage } from 'electron'
+import { Menu, Notification, Tray, nativeImage } from 'electron'
 import type { Language, Settings } from '@shared/types'
-import { APP_NAME, assetPath } from './constants'
+import { APP_TITLE, assetPath } from './constants'
 import { t } from '@shared/i18n'
 
 export interface TrayDeps {
@@ -13,10 +13,11 @@ export interface TrayDeps {
 export class AppTray {
   private tray: Tray
   private active = false
+  private lastNotice: Notification | null = null
 
   constructor(private deps: TrayDeps) {
     this.tray = new Tray(this.icon(false))
-    this.tray.setToolTip(APP_NAME)
+    this.tray.setToolTip(APP_TITLE)
     this.tray.on('click', () => this.deps.showWindow())
     this.tray.on('double-click', () => this.deps.showWindow())
     this.rebuildMenu()
@@ -47,6 +48,12 @@ export class AppTray {
         type: 'checkbox',
         checked: s.rpcEnabled,
         click: () => this.deps.applyPatch({ rpcEnabled: !s.rpcEnabled })
+      },
+      {
+        label: t(lang, 'streamer_mode'),
+        type: 'checkbox',
+        checked: s.streamerMode,
+        click: () => this.deps.applyPatch({ streamerMode: !s.streamerMode })
       },
       {
         label: t(lang, 'language'),
@@ -85,13 +92,25 @@ export class AppTray {
       this.active = active
       this.tray.setImage(this.icon(active))
     }
-    this.tray.setToolTip(`${APP_NAME} · ${statusText}`)
+    this.tray.setToolTip(`${APP_TITLE} · ${statusText}`)
   }
 
   notify(message: string, title?: string): void {
     try {
-      this.tray.displayBalloon({ title: title ?? APP_NAME, content: message })
-    } catch {
+      if (!Notification.isSupported()) {
+        this.tray.displayBalloon({ title: title ?? APP_TITLE, content: message })
+        return
+      }
+      const notice = new Notification({
+        title: title ?? APP_TITLE,
+        body: message,
+        icon: assetPath('game_icon.png')
+      })
+      notice.on('click', () => this.deps.showWindow())
+      notice.show()
+      this.lastNotice = notice
+    } catch (e) {
+      console.debug('[tray] notify failed:', e)
     }
   }
 

@@ -1,12 +1,15 @@
+import { execFile } from 'child_process'
 import { join } from 'path'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import type { Settings, Snapshot } from '@shared/types'
+import { app, BrowserWindow, globalShortcut, ipcMain, shell } from 'electron'
+import type { MatchReport, PlayerInfo, Settings, Snapshot } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import { t } from '@shared/i18n'
-import { DISCORD_CLIENT_ID, assetPath, executablePath } from './constants'
+import { APP_ID, APP_TITLE, DISCORD_CLIENT_ID, assetPath, executablePath } from './constants'
 import { loadSettings, setAutostart, updateSettings } from './settings'
 import { Poller, type Notice } from './core/poller'
 import { AppTray } from './tray'
+import { Overlay } from './overlay'
+import { applySize, resolveSize, themeBackground, windowInfo } from './windowSize'
 import {
   checkForUpdates,
   getUpdateState,
@@ -19,11 +22,14 @@ const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
 let mainWindow: BrowserWindow | null = null
 let tray: AppTray | null = null
+let overlay: Overlay | null = null
 let isQuitting = false
 let trayHideNotified = false
 
 process.on('uncaughtException', (e) => console.error('[uncaught]', e))
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e))
+
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -47,6 +53,15 @@ function applyPatch(patch: Partial<Settings>): Settings {
   if (patch.autostart !== undefined && patch.autostart !== prev.autostart) {
     setAutostart(next.autostart)
   }
+  if (next.overlayEnabled !== prev.overlayEnabled || next.overlayHotkey !== prev.overlayHotkey) {
+    overlay?.setHotkey(next.overlayHotkey, next.overlayEnabled)
+  }
+  if (next.windowSize !== prev.windowSize && mainWindow && !mainWindow.isDestroyed()) {
+    applySize(mainWindow, next.windowSize)
+  }
+  if (next.uiScale !== prev.uiScale) {
+    for (const win of BrowserWindow.getAllWindows()) applyZoom(win)
+  }
   poller.forceRefresh()
   tray?.rebuildMenu()
   broadcast(IPC.settingsChanged, next)
@@ -60,10 +75,22 @@ poller.on('snapshot', (snap: Snapshot) => {
   tray?.update(snap.connection.valorant, statusText(snap))
 })
 
+poller.on('match', (report: MatchReport | null) => broadcast(IPC.matchChanged, report))
+
 poller.on('notice', (notice: Notice) => {
   const lang = loadSettings().language
   const message = t(lang, notice.key).replace('{name}', notice.name ?? '')
   tray?.notify(message, t(lang, 'join_notice_title'))
+})
+
+poller.on('detected', (player: PlayerInfo) => {
+  const settings = loadSettings()
+  if (!settings.notifyOnDetect) return
+  const lang = settings.language
+  const who = player.name ? `${player.name}#${player.tag}` : ''
+  const lines = [who ? t(lang, 'detect_desc').replace('{name}', who) : t(lang, 'detect_desc_anon')]
+  if (settings.rpcEnabled && poller.discord.connected) lines.push(t(lang, 'detect_rpc'))
+  tray?.notify(lines.join(' '), t(lang, 'detect_title'))
 })
 
 function statusText(snap: Snapshot): string {
@@ -88,14 +115,18 @@ function showWindow(): void {
 }
 
 function createWindow(): void {
+  const settings = loadSettings()
+  const [width, height] = resolveSize(settings.windowSize)
   mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 700,
-    minWidth: 900,
-    minHeight: 620,
+    width,
+    height,
+    useContentSize: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     show: false,
     frame: false,
-    backgroundColor: '#0b0d13',
+    backgroundColor: themeBackground(settings),
     autoHideMenuBar: true,
     icon: assetPath('game_icon_white.ico'),
     webPreferences: {
@@ -131,10 +162,22 @@ function createWindow(): void {
     if (url !== mainWindow?.webContents.getURL()) e.preventDefault()
   })
 
+  mainWindow.on('closed', () => overlay?.destroy())
+
+  loadRenderer(mainWindow)
+}
+
+function applyZoom(win: BrowserWindow): void {
+  if (!win.isDestroyed()) win.webContents.setZoomFactor(loadSettings().uiScale / 100)
+}
+
+function loadRenderer(win: BrowserWindow, view = ''): void {
+  win.webContents.on('did-finish-load', () => applyZoom(win))
   if (isDev) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] as string)
+    const base = process.env['ELECTRON_RENDERER_URL'] as string
+    void win.loadURL(view ? `${base}#${view}` : base)
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    void win.loadFile(join(__dirname, '../renderer/index.html'), view ? { hash: view } : undefined)
   }
 }
 
@@ -156,6 +199,13 @@ function registerIpc(): void {
     if (typeof userId === 'string') poller.respondJoin(userId, accept === true)
   })
 
+  ipcMain.handle(IPC.matchGet, () => poller.match.getReport())
+  ipcMain.on(IPC.overlayToggle, () => overlay?.toggle())
+  ipcMain.handle(IPC.overlayGetVisible, () => overlay?.isVisible() ?? false)
+  ipcMain.on(IPC.hotkeyPause, (_e, paused: unknown) => overlay?.pause(paused === true))
+  ipcMain.handle(IPC.hotkeyStatus, () => overlay?.hotkeyOk() ?? true)
+  ipcMain.handle(IPC.windowInfo, () => windowInfo(mainWindow))
+
   ipcMain.handle(IPC.updateGet, () => getUpdateState())
   ipcMain.handle(IPC.updateCheck, () => checkForUpdates())
   ipcMain.on(IPC.updateStart, () => {
@@ -170,6 +220,25 @@ function registerDiscordProtocol(): void {
     app.setAsDefaultProtocolClient(`discord-${DISCORD_CLIENT_ID}`, executablePath(), [])
   } catch (e) {
     console.warn('[main] protocol registration failed:', e)
+  }
+}
+
+function registerToastIdentity(): void {
+  if (process.platform !== 'win32' || !app.isPackaged) return
+  const key = `HKCU\\Software\\Classes\\AppUserModelId\\${APP_ID}`
+  const values: [string, string][] = [
+    ['DisplayName', APP_TITLE],
+    ['IconUri', assetPath('game_icon.png')]
+  ]
+  for (const [name, data] of values) {
+    execFile(
+      'reg',
+      ['add', key, '/v', name, '/t', 'REG_SZ', '/d', data, '/f'],
+      { windowsHide: true },
+      (e) => {
+        if (e) console.warn('[main] toast identity failed:', e.message)
+      }
+    )
   }
 }
 
@@ -191,14 +260,20 @@ function bootstrap(): void {
     })
 
     initUpdater()
+    registerToastIdentity()
     registerDiscordProtocol()
     poller.start()
 
     const settings = loadSettings()
+    overlay = new Overlay(loadRenderer)
+    overlay.setHotkey(settings.overlayHotkey, settings.overlayEnabled)
     maybeAutoCheck(settings.autoCheckUpdates)
-    if (settings.autostart) setAutostart(true)
+    setAutostart(settings.autostart)
     if (settings.startMinimized) {
-      tray.notify(t(settings.language, 'notification_desc'), t(settings.language, 'notification_title'))
+      tray.notify(
+        t(settings.language, 'notification_desc'),
+        t(settings.language, 'notification_title')
+      )
     }
 
     app.on('activate', () => {
@@ -214,6 +289,8 @@ function bootstrap(): void {
   app.on('before-quit', () => {
     isQuitting = true
     void poller.stop()
+    overlay?.destroy()
+    globalShortcut.unregisterAll()
     tray?.destroy()
   })
 }

@@ -1,5 +1,6 @@
 import type { AxiosResponse } from 'axios'
 import { riotClient } from '../lib/http'
+import { isRangeFlow } from '../core/state'
 import type { LocalAuth } from './localAuth'
 
 export interface MatchPhase {
@@ -8,6 +9,36 @@ export interface MatchPhase {
   match_id?: string
   queue_id?: string
   provisioning_flow?: string
+  map?: string
+}
+
+export interface PartyInfo {
+  state: string
+  queueId: string
+  members: string[]
+}
+
+export interface PlayerName {
+  puuid: string
+  name: string
+  tag: string
+}
+
+type Json = Record<string, any>
+
+interface CoreInfo {
+  agent: string | null
+  match_id?: string
+  provisioning_flow?: string
+  map?: string
+}
+
+const RETRY_LIMIT = 3
+const RETRY_FALLBACK = 1500
+const RETRY_MAX_WAIT = 6000
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export class RiotApi {
@@ -33,9 +64,86 @@ export class RiotApi {
     return riotClient.post(url, data, { headers: this.auth.pdGlzHeaders(), timeout })
   }
 
+  remotePut(url: string, data: unknown, timeout = 6000): Promise<AxiosResponse> {
+    return riotClient.put(url, data, { headers: this.auth.pdGlzHeaders(), timeout })
+  }
+
+  private async fetchJson(request: () => Promise<AxiosResponse>): Promise<any | null> {
+    for (let attempt = 1; attempt <= RETRY_LIMIT; attempt++) {
+      const r = await request()
+      if (r.status === 200) return r.data ?? null
+      if (r.status !== 429 || attempt === RETRY_LIMIT) return null
+      const header = Number(r.headers?.['retry-after'])
+      const wait = header > 0 ? header * 1000 : RETRY_FALLBACK * attempt
+      await sleep(Math.min(wait, RETRY_MAX_WAIT))
+    }
+    return null
+  }
+
+  async matchRoster(phase: 'pregame' | 'ingame', matchId: string): Promise<Json | null> {
+    const base = phase === 'pregame' ? 'pregame' : 'core-game'
+    try {
+      return await this.fetchJson(() => this.remoteGet(`${this.glz}/${base}/v1/matches/${matchId}`))
+    } catch (e) {
+      console.debug('[api] roster error:', e)
+      return null
+    }
+  }
+
+  async playerNames(puuids: string[]): Promise<PlayerName[]> {
+    if (!puuids.length) return []
+    try {
+      const data = await this.fetchJson(() =>
+        this.remotePut(`${this.pd}/name-service/v2/players`, puuids)
+      )
+      return ((data ?? []) as Json[]).map((p) => ({
+        puuid: String(p.Subject ?? ''),
+        name: String(p.GameName ?? ''),
+        tag: String(p.TagLine ?? '')
+      }))
+    } catch (e) {
+      console.debug('[api] names error:', e)
+      return []
+    }
+  }
+
+  async playerMmr(puuid: string): Promise<Json | null> {
+    try {
+      return await this.fetchJson(() => this.remoteGet(`${this.pd}/mmr/v1/players/${puuid}`))
+    } catch (e) {
+      console.debug('[api] player mmr error:', e)
+      return null
+    }
+  }
+
+  async matchHistory(puuid: string, count: number): Promise<string[] | null> {
+    const url = `${this.pd}/match-history/v1/history/${puuid}?startIndex=0&endIndex=${count}&queue=competitive`
+    try {
+      const data = await this.fetchJson(() => this.remoteGet(url))
+      if (!data) return null
+      return ((data.History ?? []) as Json[]).map((m) => String(m.MatchID ?? '')).filter(Boolean)
+    } catch (e) {
+      console.debug('[api] history error:', e)
+      return null
+    }
+  }
+
+  async matchDetails(matchId: string): Promise<Json | null> {
+    try {
+      return await this.fetchJson(() =>
+        this.remoteGet(`${this.pd}/match-details/v1/matches/${matchId}`, 10000)
+      )
+    } catch (e) {
+      console.debug('[api] match details error:', e)
+      return null
+    }
+  }
+
   async selectAgent(matchId: string, agentUuid: string): Promise<boolean> {
     try {
-      const r = await this.remotePost(`${this.glz}/pregame/v1/matches/${matchId}/select/${agentUuid}`)
+      const r = await this.remotePost(
+        `${this.glz}/pregame/v1/matches/${matchId}/select/${agentUuid}`
+      )
       return r.status === 200
     } catch (e) {
       console.debug('[api] selectAgent error:', e)
@@ -80,6 +188,21 @@ export class RiotApi {
     return null
   }
 
+  async partyInfo(partyId: string): Promise<PartyInfo | null> {
+    try {
+      const r = await this.remoteGet(`${this.glz}/parties/v1/parties/${partyId}`)
+      if (r.status !== 200 || !r.data) return null
+      return {
+        state: String(r.data.State ?? ''),
+        queueId: String(r.data.MatchmakingData?.QueueID ?? ''),
+        members: ((r.data.Members ?? []) as Json[]).map((m) => String(m.Subject ?? ''))
+      }
+    } catch (e) {
+      console.debug('[api] party error:', e)
+      return null
+    }
+  }
+
   async joinByCode(code: string): Promise<boolean> {
     try {
       const r = await this.remotePost(
@@ -103,33 +226,45 @@ export class RiotApi {
       return false
     }
   }
+
   async matchPhase(): Promise<MatchPhase | null> {
+    let core: CoreInfo | null = null
     try {
-      const info = await this.coregameInfo()
-      if (info !== null) return { phase: 'ingame', ...info }
+      core = await this.coregameInfo()
     } catch (e) {
       console.debug('[api] coregame error:', e)
     }
+    if (core && !isRangeFlow(core.provisioning_flow)) return { phase: 'ingame', ...core }
     try {
       const info = await this.pregameInfo()
       if (info !== null) return { phase: 'pregame', ...info }
     } catch (e) {
       console.debug('[api] pregame error:', e)
     }
-    return null
+    return core ? { phase: 'ingame', ...core } : null
   }
 
-  private async coregameInfo(): Promise<{ agent: string | null } | null> {
+  private async coregameInfo(): Promise<CoreInfo | null> {
     const r = await this.remoteGet(`${this.glz}/core-game/v1/players/${this.auth.puuid}`)
     if (r.status !== 200) return null
     const matchId = r.data?.MatchID
     if (!matchId) return null
     const rm = await this.remoteGet(`${this.glz}/core-game/v1/matches/${matchId}`)
-    if (rm.status !== 200) return { agent: null }
-    for (const player of rm.data?.Players ?? []) {
-      if (player.Subject === this.auth.puuid) return { agent: player.CharacterID || null }
+    if (rm.status !== 200) return { agent: null, match_id: String(matchId) }
+    const data = rm.data ?? {}
+    const info: CoreInfo = {
+      agent: null,
+      match_id: String(matchId),
+      provisioning_flow: String(data.ProvisioningFlow ?? ''),
+      map: String(data.MapID ?? '')
     }
-    return { agent: null }
+    for (const player of data.Players ?? []) {
+      if (player.Subject === this.auth.puuid) {
+        info.agent = player.CharacterID || null
+        break
+      }
+    }
+    return info
   }
 
   private async pregameInfo(): Promise<{
@@ -143,7 +278,7 @@ export class RiotApi {
     const matchId = r.data?.MatchID
     if (!matchId) return null
     const rm = await this.remoteGet(`${this.glz}/pregame/v1/matches/${matchId}`)
-    if (rm.status !== 200) return { agent: null }
+    if (rm.status !== 200) return { agent: null, match_id: matchId }
     const data = rm.data ?? {}
     let teams: Array<{ Players?: Array<Record<string, unknown>> }> = data.Teams ?? []
     if (data.AllyTeam) teams = [...teams, data.AllyTeam]

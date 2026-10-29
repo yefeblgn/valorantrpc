@@ -1,6 +1,70 @@
-export function ValorantMark({ size = 16 }: { size?: number }): JSX.Element {
+import logoOnDark from '../assets/blgn-studios-light.png'
+import logoOnLight from '../assets/blgn-studios-dark.png'
+import { useResolvedTheme } from '../lib/useAppearance'
+
+export const STUDIO = 'BLGN Studios'
+
+type Tone = 'auto' | 'dark'
+
+export function StudioMark({
+  size = 16,
+  tone = 'auto',
+  className = ''
+}: {
+  size?: number
+  tone?: Tone
+  className?: string
+}): JSX.Element {
+  const theme = useResolvedTheme()
+  const onDark = tone === 'dark' || theme === 'dark'
+  return (
+    <img
+      src={onDark ? logoOnDark : logoOnLight}
+      alt=""
+      draggable={false}
+      style={{ height: size, width: 'auto' }}
+      className={`shrink-0 select-none ${className}`}
+    />
+  )
+}
+
+export function StudioTag({
+  size = 14,
+  tone = 'auto',
+  className = ''
+}: {
+  size?: number
+  tone?: Tone
+  className?: string
+}): JSX.Element {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${className}`}>
+      <span className="text-[11px] italic text-dim">by</span>
+      <StudioMark size={size} tone={tone} />
+      <span className="display text-[12px] tracking-[0.14em] text-muted">{STUDIO}</span>
+    </span>
+  )
+}
+
+export function AppLogo({ size = 22 }: { size?: number }): JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
+      <path d="M0 0H100V76L76 100H0Z" fill="var(--accent)" />
+      <path d="M18 22H33L50 63V82Z" fill="#fff" />
+      <path d="M82 22H67L55 51V70Z" fill="#fff" fillOpacity="0.85" />
+    </svg>
+  )
+}
+
+export function ValorantMark({
+  size = 16,
+  className
+}: {
+  size?: number
+  className?: string
+}): JSX.Element {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" className={className} aria-hidden>
       <polygon points="10,10 28,10 46,55 46,90" fill="currentColor" />
       <polygon points="90,10 72,10 54,55 54,90" fill="currentColor" />
     </svg>

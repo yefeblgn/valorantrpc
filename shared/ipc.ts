@@ -14,5 +14,13 @@ export const IPC = {
   updateGet: 'update:get',
   updateCheck: 'update:check',
   updateStart: 'update:start',
-  updateState: 'update:state'
+  updateState: 'update:state',
+  matchGet: 'match:get',
+  matchChanged: 'match:changed',
+  overlayToggle: 'overlay:toggle',
+  overlayVisible: 'overlay:visible',
+  overlayGetVisible: 'overlay:get-visible',
+  hotkeyPause: 'hotkey:pause',
+  hotkeyStatus: 'hotkey:status',
+  windowInfo: 'window:info'
 } as const

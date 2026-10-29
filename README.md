@@ -1,45 +1,308 @@
-# ValorantRPC (v3.0)
+<div align="center">
 
-VALORANT oyun durumunu Discord profilinde göstermeni sağlayan, tamamen yerel çalışan bir Rich Presence uygulaması. Herhangi bir Riot API anahtarı veya giriş bilgisi gerektirmez; oyun verilerini doğrudan bilgisayarındaki yerel Riot Client servisinden okur.
+<img src="assets/game_icon.png" width="88" alt="ValorantRPC icon">
 
-Arayüzü mat OLED siyahı, VALORANT temalı renkler ve iOS benzeri liquid-glass (buzlu cam) butonlarla sıfırdan tasarladık.
+# ValorantRPC
 
-## 🚀 Özellikler
+**Your VALORANT status on Discord, and a live look at everyone in your match.**<br>
+Runs entirely on your PC. No API keys, no account login, no servers in between.
 
-* **Sıfır Ayar:** Riot kullanıcı adını, tagini, oynadığın modu ve rankını yerel Riot istemcisi üzerinden otomatik algılar.
-* **Tamamen Güvenli:** Hesabına dair hiçbir şifre veya hassas bilgi dışarıya gönderilmez. Uygulama sadece kendi bilgisayarındaki Riot lockfile dosyasını okur.
-* **Canlı Durum Takibi:** Lobide, ajan seçerken veya oyundayken (skor, harita, ajan, rank ve RR dahil) her şey anlık olarak Discord profiline yansır.
-* **Discord Davetleri:** Lobideyken Discord sohbetindeki `+` → *Oyuna davet et* ile arkadaşlarını doğrudan VALORANT partine çağırabilirsin. Davet edilen kişide de ValorantRPC açık olmalıdır.
-* **Hafif Arayüz:** Kapat tuşuna bastığında arka plana (sistem tepsisine - tray) küçülür ve çalışmaya devam eder. Windows açılışında otomatik başlama seçeneği mevcuttur.
-* **Hızlı Asset Çözümü:** Ajan ve harita görsellerini dahili olarak tutmak yerine doğrudan Riot'un güncel CDN sunucusundan çeker. Bu sayede uygulamanın boyutu 220 MB'tan 78 MB seviyelerine inmiştir.
+<sub>by</sub>&nbsp;
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/blgn-studios-light.png">
+  <img src=".github/assets/blgn-studios.png" height="20" alt="BLGN Studios logo">
+</picture>
+&nbsp;<b>BLGN Studios</b>
 
-## 📦 Kurulum ve Geliştirme
+<br>
 
-Projeyi kendi bilgisayarında çalıştırmak veya geliştirmek istersen:
+[![Release](https://img.shields.io/github/v/release/yefeblgn/valorantrpc?style=for-the-badge&label=release&color=ff4655&labelColor=0f1923)](https://github.com/yefeblgn/valorantrpc/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/yefeblgn/valorantrpc/total?style=for-the-badge&color=ff4655&labelColor=0f1923)](https://github.com/yefeblgn/valorantrpc/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-ece8e1?style=for-the-badge&labelColor=0f1923)](#install)
+[![License](https://img.shields.io/github/license/yefeblgn/valorantrpc?style=for-the-badge&color=ece8e1&labelColor=0f1923)](LICENSE)
 
-### Gereksinimler
-* Node.js (v18+)
-* npm
+[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-ff4655?style=for-the-badge)](https://github.com/yefeblgn/valorantrpc/releases/latest)
+&nbsp;
+[![Release notes](https://img.shields.io/badge/Release%20notes-1f2731?style=for-the-badge)](https://github.com/yefeblgn/valorantrpc/releases)
+&nbsp;
+[![Report a bug](https://img.shields.io/badge/Report%20a%20bug-1f2731?style=for-the-badge)](https://github.com/yefeblgn/valorantrpc/issues)
 
-### Çalıştırma
-Bağımlılıkları yükleyip geliştirme modunda başlatmak için:
+**English** · [Türkçe](README.tr.md)
+
+<br>
+
+<img src=".github/assets/screenshots/overlay-en.jpg" width="100%" alt="Match Insights panel over the game">
+
+<sub>Match Insights, opened with <kbd>Ctrl</kbd> + <kbd>T</kbd> on top of the game</sub>
+
+</div>
+
+<br>
+
+## Features
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src=".github/assets/icons/presence.svg" width="26" alt=""><br>
+      <b>Rich Presence that follows the game</b><br>
+      Menu, queue, agent select, match, the Range and match found each get their own status, with map art, agent portrait, score, rank and RR.
+    </td>
+    <td width="50%" valign="top">
+      <img src=".github/assets/icons/insights.svg" width="26" alt=""><br>
+      <b>Match Insights</b><br>
+      Rank, peak rank, act record, KDA, K/D and headshot rate for every player, from agent select to the end of the match.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/hotkey.svg" width="26" alt=""><br>
+      <b>In-game panel on a hotkey</b><br>
+      Press <kbd>Ctrl</kbd> + <kbd>T</kbd> (or any combo you record) to fade the stats panel in over the game. Press again to hide it.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/templates.svg" width="26" alt=""><br>
+      <b>Text templates</b><br>
+      Write both Discord lines yourself with variables like <code>{agent}</code>, <code>{map}</code> and <code>{score}</code>. Empty lines stay automatic.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/streamer.svg" width="26" alt=""><br>
+      <b>Streamer mode</b><br>
+      One click hides your name, tag, rank and level on Discord and turns invites off.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/range.svg" width="26" alt=""><br>
+      <b>The Range and queueing from it</b><br>
+      Shows <i>In the Range · Warming up</i>, switches to <i>In Queue · Competitive</i> when you queue from the Range, and <i>Match found!</i> when it pops.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/invites.svg" width="26" alt=""><br>
+      <b>Discord invites</b><br>
+      Invite friends to your VALORANT party from a Discord chat with <b>+ → Invite to play</b>, and accept join requests from the app.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/autolock.svg" width="26" alt=""><br>
+      <b>Auto-Lock for custom games</b><br>
+      Pick an agent from a grid that looks like agent select; it is locked the moment a custom game starts. New agents are tagged.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/notify.svg" width="26" alt=""><br>
+      <b>Detection notification</b><br>
+      A Windows notification tells you when VALORANT is detected and your status goes live. Click it to open the app.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/update.svg" width="26" alt=""><br>
+      <b>Always current</b><br>
+      Agent, map and rank data refresh on their own when the game patches, and the app updates itself from GitHub releases.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/privacy.svg" width="26" alt=""><br>
+      <b>Local by design</b><br>
+      Reads the Riot Client on your machine. Nothing is sent to us or to any third-party server.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/language.svg" width="26" alt=""><br>
+      <b>English and Turkish</b><br>
+      The interface and every Discord line are available in both languages; the client language is detected on first launch.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/design.svg" width="26" alt=""><br>
+      <b>Dark, light or system theme</b><br>
+      Switch between dark and light, or follow Windows. Pick any accent color.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/window.svg" width="26" alt=""><br>
+      <b>Fixed window sizes</b><br>
+      Like a game client, the window keeps a fixed size: 1024×640, 1152×720, 1280×800 or 1440×900. Automatic picks the best fit for your screen.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <img src=".github/assets/icons/accessibility.svg" width="26" alt=""><br>
+      <b>Accessibility</b><br>
+      Interface size from 90% to 125%, bold text, high contrast and reduced motion, all under <b>Settings → Appearance</b> without breaking the layout.
+    </td>
+  </tr>
+</table>
+
+<br>
+
+## Match Insights
+
+Match Insights shows who you are playing with and against, the way tracker sites do, without leaving the game.
+
+- **Agent select:** your team appears as soon as the lobby forms. Rows update as players hover and lock agents.
+- **In match:** both teams are listed side by side. Teams show their average rank.
+- **Where:** in the **Live Match** page of the app, and in the in-game panel you open with the hotkey.
+
+| Column | What it shows |
+| --- | --- |
+| **Rank** | Current rank and RR in this act |
+| **Peak** | Highest rank ever reached and the act it happened in. Old Immortal ranks are mapped to today's tiers |
+| **This Act** | Wins, losses and win rate this act |
+| **KDA** | (Kills + Assists) / Deaths over the last 3 competitive matches |
+| **K/D** | Kills / Deaths over the last 3 competitive matches |
+| **HS%** | Headshot rate over the last 3 competitive matches |
+
+Your row is marked **YOU** and your party members **PARTY**. Players who turned on Riot's *hide my name* setting stay hidden: you see their agent, never their Riot ID.
+
+**Hotkey.** <kbd>Ctrl</kbd> + <kbd>T</kbd> by default. To change it, open **Settings → Match Insights**, click the hotkey box and press the keys you want. Combinations like <kbd>Alt</kbd> + <kbd>Q</kbd> work, and so do single keys such as <kbd>F6</kbd>, <kbd>Insert</kbd> or <kbd>Home</kbd>. <kbd>Esc</kbd> cancels.
+
+> [!IMPORTANT]
+> The panel can only draw over the game when VALORANT's display mode is **Windowed Fullscreen**. Windows does not allow overlays on exclusive fullscreen. In that case, use the Live Match page on a second screen or with <kbd>Alt</kbd> + <kbd>Tab</kbd>.
+
+> [!WARNING]
+> Match Insights is **off by default**. Riot's developer policy is against tools that show other players' stats without their consent, and there have been reports of temporary penalties for using tracker apps during matches. Turning it on is your decision and your responsibility.
+
+<br>
+
+## Discord presence
+
+| Where you are | Top line | Bottom line |
+| --- | --- | --- |
+| Menu | Competitive | In Queue |
+| Agent select | Selecting Agent | Hush |
+| In match | Competitive | In Game · 7 - 5 |
+| The Range | In the Range | Warming up |
+| Queueing from the Range | In the Range | In Queue · Competitive |
+| Match found | Competitive | Match found! |
+
+The large image switches between your player card, map art and mode art. The small image shows your agent or rank. Every slot can be fixed to something else under **Settings → Presence**.
+
+### Text templates
+
+Turn on **Settings → Presence → Text templates** to write the lines yourself for each state (menu, agent select, match, the Range). Click a line, then click a variable to insert it. If a variable is empty at that moment, the separator next to it is removed so the line still reads cleanly.
+
+| Variable | Turkish alias | Example |
+| --- | --- | --- |
+| `{mode}` | `{mod}` | Competitive |
+| `{map}` | `{harita}` | Corrode |
+| `{agent}` | `{ajan}` | Hush |
+| `{score}` | `{skor}` | 7 - 5 |
+| `{rank}` | `{rank}` | Platinum 1 |
+| `{rr}` | `{rr}` | 47 RR |
+| `{level}` | `{seviye}` | 214 |
+| `{player}` | `{oyuncu}` | Name#TAG |
+| `{party}` | `{parti}` | 2/5 |
+| `{status}` | `{durum}` | In Game |
+
+Example: `{agent} · {map}` on top and `{status} · {score}` below gives **Hush · Corrode** / **In Game · 7 - 5**.
+
+<br>
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src=".github/assets/screenshots/home-en.png" alt="Home"></td>
+    <td width="50%"><img src=".github/assets/screenshots/templates-en.png" alt="Text templates"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Home: player card, live status and Discord preview</sub></td>
+    <td align="center"><sub>Text templates with live examples</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src=".github/assets/screenshots/autolock-en.png" alt="Auto-Lock agent grid"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub>Auto-Lock agent grid</sub></td>
+  </tr>
+</table>
+
+<br>
+
+## Install
+
+1. Download **ValorantRPC-Setup-x.y.z.exe** (installer) or **ValorantRPC-x.y.z-portable.exe** from the [latest release](https://github.com/yefeblgn/valorantrpc/releases/latest).
+2. Open the **Discord desktop app**. The browser version of Discord cannot show game activity.
+3. Start ValorantRPC, then launch VALORANT. Your status appears on its own.
+
+Requirements: Windows 10 or 11, VALORANT, Discord desktop.
+
+> [!NOTE]
+> The installer is not code-signed, so Windows SmartScreen may show a warning the first time. Choose **More info → Run anyway**.
+
+<br>
+
+## How it works
+
+- The Riot Client writes a local `lockfile`. ValorantRPC reads it to talk to the client's local API on `127.0.0.1`, the same way the game itself does.
+- Your status comes from your own Riot session. Match Insights uses the same session to read ranks and match history from Riot's game services.
+- Agent names, map art and rank icons come from the public [valorant-api.com](https://valorant-api.com) and are cached locally.
+- Discord is updated over its local IPC pipe.
+
+There is no ValorantRPC server, no analytics and no telemetry.
+
+<br>
+
+## Troubleshooting
+
+<details>
+<summary><b>My status does not show on Discord</b></summary>
+
+Make sure the Discord desktop app is running, and that **User Settings → Activity Privacy → Share your detected activities with others** is on. Check that **Rich Presence** is on in the app's home page.
+</details>
+
+<details>
+<summary><b>The in-game panel does not appear</b></summary>
+
+Set VALORANT's display mode to **Windowed Fullscreen** and make sure Match Insights is turned on. With exclusive fullscreen, use the Live Match page instead.
+</details>
+
+<details>
+<summary><b>The hotkey does nothing</b></summary>
+
+Another program may already use that combination. The settings page shows a warning when the hotkey cannot be registered. Pick a different one.
+</details>
+
+<details>
+<summary><b>A player shows "Couldn't load stats"</b></summary>
+
+Riot limits how many requests can be made in a short time, and brand-new accounts may have no ranked data. The app retries after a minute.
+</details>
+
+<details>
+<summary><b>A player shows "Hidden player"</b></summary>
+
+That player turned on Riot's setting to hide their name. ValorantRPC respects it and never looks their name up.
+</details>
+
+<br>
+
+## Build from source
+
+Requires Node.js 18 or later.
+
 ```bash
 npm install
+```
+
+```bash
 npm run dev
 ```
 
-### Derleme (Build & Paketleme)
-Kurulum dosyasını (.exe) veya taşınabilir (portable) sürümünü oluşturmak için:
 ```bash
 npm run dist
 ```
-Oluşan çıktılar `./release` klasöründe yer alacaktır.
 
-## 💻 Teknolojiler
-* **Electron + TypeScript** (Masaüstü konteyneri ve arka plan işlemleri)
-* **Vite + React** (Arayüz yapısı)
-* **Tailwind CSS + Framer Motion** (Liquid glass tasarımı ve sayfa geçişleri)
-* **Radix UI** (Erişilebilir arayüz elementleri)
+`npm run dist` writes the installer and the portable build to `release/`.
 
-## 📄 Lisans
-[MIT](LICENSE)
+Built with Electron, React, TypeScript, Vite and Tailwind CSS.
+
+<br>
+
+## License
+
+[MIT](LICENSE) © 2026 BLGN Studios
+
+<sub>ValorantRPC isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</sub>

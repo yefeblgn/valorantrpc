@@ -10,10 +10,11 @@ import type {
   SmallTextMode
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
+import { renderTemplate, type TemplateState, type TemplateValues } from '@shared/templates'
 import { FALLBACK_LARGE_IMAGE } from '../constants'
 import { t } from '@shared/i18n'
 import type { Content } from '../riot/content'
-import { isCustom, isQueuing } from './state'
+import { inRange, isCustom, isMatchFound, isQueuing } from './state'
 
 const HTTP_URL = /^https?:\/\/[^\s]+$/i
 const DEFAULT_BUTTON = {
@@ -25,15 +26,9 @@ function levelText(state: GameState, language: Language): string {
   return `${t(language, 'level')} ${state.accountLevel}`
 }
 
-function largeCard(
-  state: GameState,
-  settings: Settings,
-  language: Language
-): [string, string] {
+function largeCard(state: GameState, settings: Settings, language: Language): [string, string] {
   const text =
-    settings.showLevel && state.accountLevel
-      ? levelText(state, language)
-      : t(language, 'app_title')
+    settings.showLevel && state.accountLevel ? levelText(state, language) : t(language, 'app_title')
   return [FALLBACK_LARGE_IMAGE, text]
 }
 
@@ -50,7 +45,17 @@ function largeFallback(
   return largeCard(state, settings, language)
 }
 
+function rangeQueued(state: GameState): boolean {
+  return inRange(state) && (isQueuing(state) || isMatchFound(state))
+}
+
+function modeLabel(state: GameState, content: Content, language: Language): string {
+  if (inRange(state) && !rangeQueued(state)) return t(language, 'range')
+  return content.modeName(state.queueId)
+}
+
 function scoreInfo(state: GameState, content: Content): ScoreInfo | null {
+  if (inRange(state)) return null
   if (state.allyScore === null || state.enemyScore === null) return null
   if (content.usesTeamHealth(state.queueId)) {
     return state.enemyScore > 0 ? { kind: 'health', hp: state.enemyScore } : null
@@ -95,7 +100,8 @@ function buildMenu(
       : t(language, 'p_in_menu')
 
   const p: BuiltPresence = { details, largeImage, largeText }
-  if (isQueuing(state)) p.state = t(language, 'queuing')
+  if (isMatchFound(state)) p.state = t(language, 'match_found')
+  else if (isQueuing(state)) p.state = t(language, 'queuing')
 
   const isComp = content.queueKey(state.queueId) === 'competitive'
   if (isComp) {
@@ -152,6 +158,49 @@ function buildPregame(
   return p
 }
 
+function buildRange(
+  state: GameState,
+  settings: Settings,
+  content: Content,
+  language: Language
+): BuiltPresence {
+  const [, splash] = content.mapInfo(state.mapPath)
+  const [largeImage, largeText] = splash
+    ? [splash, t(language, 'range')]
+    : largeCard(state, settings, language)
+
+  const queued = rangeQueued(state)
+  const mode = state.queueId ? content.modeName(state.queueId) : ''
+  const status = isMatchFound(state)
+    ? t(language, 'match_found')
+    : isQueuing(state)
+      ? t(language, 'queuing')
+      : t(language, 'p_warming_up')
+
+  const p: BuiltPresence = {
+    details: t(language, 'p_in_range'),
+    state: queued && mode ? `${status} · ${mode}` : status,
+    largeImage,
+    largeText
+  }
+
+  const agentIcon = content.agentIcon(state.agentUuid)
+  if (agentIcon) {
+    p.smallImage = agentIcon
+    p.smallText = content.agentName(state.agentUuid) || t(language, 'range')
+  } else if (queued && mode) {
+    const icon = content.modeIcon(state.queueId)
+    if (icon) {
+      p.smallImage = icon
+      p.smallText = mode
+    }
+  } else {
+    p.smallImage = content.rangeIcon()
+    p.smallText = t(language, 'range')
+  }
+  return p
+}
+
 function buildIngame(
   state: GameState,
   settings: Settings,
@@ -163,9 +212,7 @@ function buildIngame(
   const details = isCustom(state) ? t(language, 'custom') : content.modeName(state.queueId)
 
   const score = settings.showScore ? scoreText(state, content, language) : ''
-  const stateLine = score
-    ? `${t(language, 'p_in_game')} · ${score}`
-    : t(language, 'p_in_game')
+  const stateLine = score ? `${t(language, 'p_in_game')} · ${score}` : t(language, 'p_in_game')
 
   const p: BuiltPresence = { details, state: stateLine, largeImage, largeText }
 
@@ -217,7 +264,7 @@ function textFor(
     case 'level':
       return state.accountLevel ? levelText(state, language) : ''
     case 'mode':
-      return content.modeName(state.queueId)
+      return modeLabel(state, content, language)
     case 'mapName':
       return content.mapInfo(state.mapPath)[0]
     case 'agentName':
@@ -262,6 +309,58 @@ function applyOverrides(
   }
 }
 
+function publicState(state: GameState, settings: Settings): GameState {
+  if (!settings.streamerMode) return state
+  return { ...state, name: '', tag: '', competitiveTier: 0, rr: null, accountLevel: 0 }
+}
+
+function templateKey(state: GameState): TemplateState {
+  if (inRange(state)) return 'range'
+  if (state.sessionState === 'ingame') return 'ingame'
+  if (state.sessionState === 'pregame') return 'pregame'
+  return 'menus'
+}
+
+function statusLine(state: GameState, language: Language): string {
+  if (isMatchFound(state)) return t(language, 'match_found')
+  if (isQueuing(state)) return t(language, 'queuing')
+  if (inRange(state)) return t(language, 'p_in_range')
+  if (state.sessionState === 'ingame') return t(language, 'p_in_game')
+  if (state.sessionState === 'pregame') return t(language, 'p_selecting_agent')
+  return t(language, 'p_in_menu')
+}
+
+function templateValues(state: GameState, content: Content, language: Language): TemplateValues {
+  return {
+    mode: isCustom(state) ? t(language, 'custom') : modeLabel(state, content, language),
+    map: content.mapInfo(state.mapPath)[0],
+    agent: content.agentName(state.agentUuid),
+    score: scoreText(state, content, language),
+    rank: content.tierName(state.competitiveTier),
+    rr: state.rr !== null && state.competitiveTier > 0 ? `${state.rr} RR` : '',
+    level: state.accountLevel ? String(state.accountLevel) : '',
+    player: state.name ? `${state.name}#${state.tag}` : '',
+    party: state.partySize > 0 ? `${state.partySize}/${state.partyMax}` : '',
+    status: statusLine(state, language)
+  }
+}
+
+function applyTemplates(
+  p: BuiltPresence,
+  state: GameState,
+  settings: Settings,
+  content: Content,
+  language: Language
+): void {
+  const lines = settings.templates[templateKey(state)]
+  if (!lines.details.trim() && !lines.state.trim()) return
+  const values = templateValues(state, content, language)
+  const details = lines.details.trim() ? renderTemplate(lines.details, values) : ''
+  const stateLine = lines.state.trim() ? renderTemplate(lines.state, values) : ''
+  if (details) p.details = details
+  if (stateLine) p.state = stateLine
+}
+
 export interface PartyInvite {
   partyId: string
   secret: string
@@ -271,6 +370,7 @@ export function canInvite(state: GameState): boolean {
   return (
     state.sessionState === 'menus' &&
     !isQueuing(state) &&
+    !isMatchFound(state) &&
     !!state.partyId &&
     state.partySize > 0 &&
     state.partySize < state.partyMax
@@ -278,28 +378,31 @@ export function canInvite(state: GameState): boolean {
 }
 
 export function buildPresence(
-  state: GameState,
+  rawState: GameState,
   settings: Settings,
   content: Content,
   language: Language,
   startTs: number,
   invite: PartyInvite | null = null
 ): BuiltPresence | null {
-  if (state.sessionState === 'idle') return null
+  if (rawState.sessionState === 'idle') return null
+  const state = publicState(rawState, settings)
 
   let p: BuiltPresence
-  if (state.sessionState === 'ingame') p = buildIngame(state, settings, content, language)
+  if (inRange(state)) p = buildRange(state, settings, content, language)
+  else if (state.sessionState === 'ingame') p = buildIngame(state, settings, content, language)
   else if (state.sessionState === 'pregame') p = buildPregame(state, settings, content, language)
   else p = buildMenu(state, settings, content, language)
 
   applyOverrides(p, state, settings, content, language)
+  if (settings.templatesEnabled) applyTemplates(p, state, settings, content, language)
 
   if (settings.showElapsed) p.startTimestamp = startTs
   if (settings.showParty && state.partySize > 0) {
     p.partySize = [state.partySize, state.partyMax]
   }
 
-  if (settings.discordInvites && invite && canInvite(state)) {
+  if (settings.discordInvites && !settings.streamerMode && invite && canInvite(state)) {
     p.partySize = [state.partySize, state.partyMax]
     p.partyId = invite.partyId
     p.joinSecret = invite.secret
@@ -312,16 +415,15 @@ export function buildPresence(
   return p
 }
 
-export function buildDisplay(
-  state: GameState,
-  content: Content
-): DisplayInfo {
+export function buildDisplay(state: GameState, content: Content): DisplayInfo {
   const [mapName, mapSplash] = content.mapInfo(state.mapPath)
   return {
     statusKey: state.sessionState,
     isQueuing: isQueuing(state),
+    isMatchFound: isMatchFound(state),
+    isRange: inRange(state),
     isCustom: isCustom(state),
-    modeName: content.modeName(state.queueId),
+    modeName: modeLabel(state, content, content.language),
     score: scoreInfo(state, content),
     mapName,
     mapSplash,

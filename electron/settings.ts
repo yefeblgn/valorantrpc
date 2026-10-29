@@ -2,13 +2,18 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { app } from 'electron'
 import {
   DEFAULT_SETTINGS,
+  UI_SCALES,
+  WINDOW_SIZES,
+  type ThemeMode,
+  type WindowSizeKey,
   type LargeImageMode,
   type LargeTextMode,
   type Settings,
   type SmallImageMode,
   type SmallTextMode
 } from '@shared/types'
-import { configPath, executablePath } from './constants'
+import { sanitizeTemplates } from '@shared/templates'
+import { APP_NAME, configPath, executablePath } from './constants'
 
 const LARGE_IMAGE: LargeImageMode[] = ['auto', 'map', 'agent', 'rank', 'playercard']
 const LARGE_TEXT: LargeTextMode[] = ['auto', 'playerName', 'level', 'mode', 'mapName']
@@ -76,6 +81,18 @@ function sanitize(s: Settings): Settings {
     startMinimized: bool(s.startMinimized, d.startMinimized),
     closeToTray: bool(s.closeToTray, d.closeToTray),
     autoCheckUpdates: bool(s.autoCheckUpdates, d.autoCheckUpdates),
+    notifyOnDetect: bool(s.notifyOnDetect, d.notifyOnDetect),
+    sidebarCollapsed: bool(s.sidebarCollapsed, d.sidebarCollapsed),
+    theme: oneOf<ThemeMode>(s.theme, ['dark', 'light', 'system'], d.theme),
+    windowSize: oneOf<WindowSizeKey>(
+      s.windowSize,
+      ['auto', ...(Object.keys(WINDOW_SIZES) as WindowSizeKey[])],
+      d.windowSize
+    ),
+    uiScale: UI_SCALES.includes(s.uiScale) ? s.uiScale : d.uiScale,
+    boldText: bool(s.boldText, d.boldText),
+    highContrast: bool(s.highContrast, d.highContrast),
+    reduceMotion: bool(s.reduceMotion, d.reduceMotion),
     pollInterval: Math.min(Math.max(Math.round(Number(s.pollInterval)) || 2, 1), 10),
     accentColor: /^#[0-9a-fA-F]{6}$/.test(s.accentColor) ? s.accentColor : d.accentColor,
     showElapsed: bool(s.showElapsed, d.showElapsed),
@@ -85,21 +102,36 @@ function sanitize(s: Settings): Settings {
     showScore: bool(s.showScore, d.showScore),
     showButton: bool(s.showButton, d.showButton),
     buttonLabel: String(s.buttonLabel ?? '').slice(0, 32),
-    buttonUrl: String(s.buttonUrl ?? '').trim().slice(0, 512),
+    buttonUrl: String(s.buttonUrl ?? '')
+      .trim()
+      .slice(0, 512),
     discordInvites: bool(s.discordInvites, d.discordInvites),
+    streamerMode: bool(s.streamerMode, d.streamerMode),
     largeImage: oneOf(s.largeImage, LARGE_IMAGE, d.largeImage),
     largeText: oneOf(s.largeText, LARGE_TEXT, d.largeText),
     smallImage: oneOf(s.smallImage, SMALL_IMAGE, d.smallImage),
     smallText: oneOf(s.smallText, SMALL_TEXT, d.smallText),
+    templatesEnabled: bool(s.templatesEnabled, d.templatesEnabled),
+    templates: sanitizeTemplates(s.templates),
     autolockEnabled: bool(s.autolockEnabled, d.autolockEnabled),
-    autolockAgent: typeof s.autolockAgent === 'string' ? s.autolockAgent : d.autolockAgent
+    autolockAgent: typeof s.autolockAgent === 'string' ? s.autolockAgent : d.autolockAgent,
+    overlayEnabled: bool(s.overlayEnabled, d.overlayEnabled),
+    overlayHotkey:
+      typeof s.overlayHotkey === 'string' && s.overlayHotkey.trim()
+        ? s.overlayHotkey.trim().slice(0, 48)
+        : d.overlayHotkey
   }
 }
 
+const LEGACY_LOGIN_NAME = 'electron.app.ValorantRPC'
+
 export function setAutostart(enabled: boolean): void {
+  if (!app.isPackaged) return
   try {
+    app.setLoginItemSettings({ openAtLogin: false, name: LEGACY_LOGIN_NAME })
     app.setLoginItemSettings({
       openAtLogin: enabled,
+      name: APP_NAME,
       path: executablePath(),
       args: []
     })

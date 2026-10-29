@@ -1,5 +1,8 @@
 import type { GameState, SessionState } from '@shared/types'
 
+const RANGE_FLOW = 'shootingrange'
+const RANGE_MAP_PREFIX = '/game/maps/poveglia'
+
 export function idleState(name = '', tag = ''): GameState {
   return {
     sessionState: 'idle',
@@ -28,6 +31,7 @@ export function signature(s: GameState): string {
   return [
     s.sessionState,
     s.queueId,
+    s.provisioningFlow,
     s.mapPath,
     s.agentUuid,
     s.partySize,
@@ -41,8 +45,27 @@ export function signature(s: GameState): string {
   ].join('|')
 }
 
+export function isRangeFlow(flow: string | null | undefined): boolean {
+  return (flow || '').toLowerCase() === RANGE_FLOW
+}
+
+export function inRange(s: GameState): boolean {
+  return (
+    s.sessionState === 'ingame' &&
+    (isRangeFlow(s.provisioningFlow) || s.mapPath.toLowerCase().startsWith(RANGE_MAP_PREFIX))
+  )
+}
+
+function canQueueFrom(s: GameState): boolean {
+  return s.sessionState === 'menus' || inRange(s)
+}
+
 export function isQueuing(s: GameState): boolean {
-  return s.sessionState === 'menus' && s.partyState.toUpperCase() === 'MATCHMAKING'
+  return canQueueFrom(s) && s.partyState.toUpperCase() === 'MATCHMAKING'
+}
+
+export function isMatchFound(s: GameState): boolean {
+  return canQueueFrom(s) && s.partyState.toUpperCase() === 'MATCHMADE_GAME_STARTING'
 }
 
 export function isCustom(s: GameState): boolean {
