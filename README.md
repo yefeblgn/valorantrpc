@@ -56,9 +56,45 @@ Runs entirely on your PC. No API keys, no account login, no servers in between.
   </tr>
   <tr>
     <td valign="top">
+      <img src=".github/assets/icons/hud.svg" width="26" alt=""><br>
+      <b>Agent select HUD</b><br>
+      Your team's ranks, act win rate and K/D, plus your three best agents on the map, on screen as soon as agent select starts. Click a player for details or to copy their Riot ID, drag the card anywhere, shrink it or close it, without leaving the game.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/career.svg" width="26" alt=""><br>
+      <b>Career, even offline</b><br>
+      Your own match history is saved on your PC as you play and stays readable when VALORANT and the Riot Client are closed. Updates and reinstalls keep it, and you can back it up to a single file.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/rounds.svg" width="26" alt=""><br>
+      <b>Every round, replayed</b><br>
+      Full scoreboard, a round-by-round timeline, who planted where and when, who defused, the kill feed with weapons, every loadout, and a minimap of kills, deaths and plants.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/analysis.svg" width="26" alt=""><br>
+      <b>Agents, weapons and analysis</b><br>
+      Win rate, KDA, ACS, ADR and HS% per agent and map, your best weapons and what kills you most, pistol/eco/force/full-buy rounds, sides, opening duels, clutches and personal records.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/rank.svg" width="26" alt=""><br>
+      <b>Rank progress</b><br>
+      RR over time with promotions marked, recent RR changes, and a rank goal that estimates how many matches it may take. The home page tracks this session's wins, losses and net RR.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/share.svg" width="26" alt=""><br>
+      <b>Share your match</b><br>
+      Copy a scoreboard image of any match to paste into Discord, or save it as PNG. A notification sums up each match the moment it ends.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
       <img src=".github/assets/icons/hotkey.svg" width="26" alt=""><br>
       <b>In-game panel on a hotkey</b><br>
-      Press <kbd>Ctrl</kbd> + <kbd>T</kbd> (or any combo you record) to fade the stats panel in over the game. Press again to hide it.
+      Press <kbd>Ctrl</kbd> + <kbd>T</kbd> (or any combo you record) to fade the stats panel in over the game, in Fullscreen too, scaled to your resolution. The hotkey only works while VALORANT is in front.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/templates.svg" width="26" alt=""><br>
@@ -93,8 +129,8 @@ Runs entirely on your PC. No API keys, no account login, no servers in between.
   <tr>
     <td valign="top">
       <img src=".github/assets/icons/notify.svg" width="26" alt=""><br>
-      <b>Detection notification</b><br>
-      A Windows notification tells you when VALORANT is detected and your status goes live. Click it to open the app.
+      <b>Notifications</b><br>
+      Know when VALORANT is detected, get a summary after every match, and, if you want, a gentle break reminder after a losing streak.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/update.svg" width="26" alt=""><br>
@@ -106,7 +142,7 @@ Runs entirely on your PC. No API keys, no account login, no servers in between.
     <td valign="top">
       <img src=".github/assets/icons/privacy.svg" width="26" alt=""><br>
       <b>Local by design</b><br>
-      Reads the Riot Client on your machine. Nothing is sent to us or to any third-party server.
+      Reads the Riot Client on your machine, and your match history stays on it. Nothing is sent to us or to any third-party server.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/language.svg" width="26" alt=""><br>
@@ -280,7 +316,19 @@ Make sure Match Insights is turned on and VALORANT is the window in front. If yo
 <details>
 <summary><b>The hotkey does nothing</b></summary>
 
-Another program may already use that combination. The settings page shows a warning when the hotkey cannot be registered. Pick a different one.
+The hotkey only works while VALORANT is the window in front. If it still does nothing in game, another program may already use that combination; the settings page shows a warning when the hotkey cannot be registered. Pick a different one.
+</details>
+
+<details>
+<summary><b>The Career page is empty</b></summary>
+
+New matches are read while the Riot Client is open; VALORANT itself can be closed. The first time, your last 100 matches take a minute or two. Make sure **Settings → History → Save match history** is on. Matches you saved earlier are always shown, even offline.
+</details>
+
+<details>
+<summary><b>I can't click the HUD</b></summary>
+
+The HUD is clickable during agent select, when VALORANT shows its own cursor. The full in-game panel is display-only on purpose, so it never catches a click meant for the game.
 </details>
 
 <details>
