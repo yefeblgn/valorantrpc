@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as RTabs from '@radix-ui/react-tabs'
 import { motion } from 'framer-motion'
-import { Check, Lock } from 'lucide-react'
+import { Check, Download, FolderOpen, Lock, Upload } from 'lucide-react'
 import {
   DEFAULT_SETTINGS,
+  LANGUAGES,
+  LANGUAGE_NAMES,
   type AgentOption,
   type LargeImageMode,
   type LargeTextMode,
@@ -14,12 +16,14 @@ import {
   type ThemeMode,
   type UiScale,
   type WindowInfo,
+  type TransferResult,
   type WindowSizeKey,
+  TILT_RANGE,
   UI_SCALES,
   WINDOW_SIZES
 } from '@shared/types'
 import { useStore } from '../store'
-import { useT } from '../lib/i18n'
+import { useDir, useT } from '../lib/i18n'
 import { PageHeader } from '../components/Card'
 import { Field } from '../components/ui/Field'
 import { Switch } from '../components/ui/Switch'
@@ -32,6 +36,7 @@ import { DiscordPreview } from '../components/DiscordPreview'
 import { TemplateEditor } from '../components/TemplateEditor'
 import { UpdatePanel } from '../components/UpdatePanel'
 import { HotkeyRecorder } from '../components/ui/HotkeyRecorder'
+import { HudEditor } from '../components/HudEditor'
 import { RiskNote } from './Match'
 import { darken } from '../lib/format'
 
@@ -60,17 +65,26 @@ function presenceDefaults(): Partial<AppSettings> {
   return Object.fromEntries(PRESENCE_KEYS.map((k) => [k, DEFAULT_SETTINGS[k]]))
 }
 
-const TABS = ['general', 'presence', 'overlay', 'autolock', 'appearance', 'updates'] as const
+const TABS = [
+  'general',
+  'presence',
+  'overlay',
+  'history',
+  'autolock',
+  'appearance',
+  'updates'
+] as const
 type Tab = (typeof TABS)[number]
 
 export function Settings(): JSX.Element {
   const t = useT()
+  const dir = useDir()
   const [tab, setTab] = useState<Tab>('general')
 
   return (
     <div className="p-6">
       <PageHeader title={t('nav_settings')} desc={t('settings_desc')} />
-      <RTabs.Root value={tab} onValueChange={(v) => setTab(v as Tab)}>
+      <RTabs.Root value={tab} onValueChange={(v) => setTab(v as Tab)} dir={dir}>
         <RTabs.List className="mb-5 flex flex-wrap gap-x-6 border-b border-line">
           {TABS.map((tb) => (
             <RTabs.Trigger
@@ -80,7 +94,7 @@ export function Settings(): JSX.Element {
             >
               {t(`tab_${tb}`)}
               <span
-                className={`absolute inset-x-0 -bottom-px h-[2px] origin-left bg-accent transition-transform duration-200 ease-out ${
+                className={`absolute inset-x-0 -bottom-px h-[2px] origin-left bg-accent rtl:origin-right transition-transform duration-200 ease-out ${
                   tab === tb ? 'scale-x-100' : 'scale-x-0'
                 }`}
               />
@@ -99,6 +113,7 @@ export function Settings(): JSX.Element {
           {tab === 'autolock' && <AutolockTab />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'overlay' && <OverlayTab />}
+          {tab === 'history' && <HistoryTab />}
           {tab === 'updates' && <UpdatePanel />}
         </motion.div>
       </RTabs.Root>
@@ -137,13 +152,11 @@ function GeneralTab(): JSX.Element {
           <Switch checked={settings.rpcEnabled} onChange={(v) => patch({ rpcEnabled: v })} />
         </Field>
         <Field label={t('language')} desc={t('language_desc')}>
-          <Segmented<Language>
+          <Select
             value={settings.language}
-            options={[
-              { value: 'tr', label: 'TR' },
-              { value: 'en', label: 'EN' }
-            ]}
-            onChange={(v) => patch({ language: v, languageDetected: true })}
+            minWidth={150}
+            options={LANGUAGES.map((code) => ({ value: code, label: LANGUAGE_NAMES[code] }))}
+            onChange={(v) => patch({ language: v as Language, languageDetected: true })}
           />
         </Field>
         <Field label={t('poll_interval')} desc={t('poll_interval_desc')}>
@@ -153,7 +166,7 @@ function GeneralTab(): JSX.Element {
               onChange={setLocalInterval}
               onCommit={(v) => patch({ pollInterval: v })}
             />
-            <span className="display w-8 text-right text-[15px] text-muted">{localInterval}s</span>
+            <span className="display w-8 text-end text-[15px] text-muted">{localInterval}s</span>
           </div>
         </Field>
         <Field label={t('notify_detect')} desc={t('notify_detect_desc')}>
@@ -353,7 +366,7 @@ function AutolockTab(): JSX.Element {
             {selected ? (
               <>
                 <img src={selected.icon} className="h-8 w-8 border border-line-2" alt="" />
-                <div className="text-right">
+                <div className="text-end">
                   <div className="display text-[18px]">{selected.name}</div>
                   <div className="text-[11.5px] text-dim">{selected.role}</div>
                 </div>
@@ -405,7 +418,7 @@ function AgentTile({
     <Tip label={agent.name} desc={agent.role || undefined} side="top">
       <button
         onClick={onPick}
-        className={`group relative flex flex-col overflow-hidden border text-left transition-colors ${
+        className={`group relative flex flex-col overflow-hidden border text-start transition-colors ${
           selected ? 'border-accent' : 'border-line hover:border-line-2'
         }`}
       >
@@ -424,12 +437,12 @@ function AgentTile({
             alt=""
           />
           {selected && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center bg-accent text-white">
+            <span className="absolute end-1 top-1 flex h-4 w-4 items-center justify-center bg-accent text-white">
               <Lock size={10} />
             </span>
           )}
           {agent.isNew && (
-            <span className="display absolute left-0 top-0 bg-accent px-1.5 py-[3px] text-[10.5px] tracking-[0.12em] text-white">
+            <span className="display absolute start-0 top-0 bg-accent px-1.5 py-[3px] text-[10.5px] tracking-[0.12em] text-white">
               {newLabel}
             </span>
           )}
@@ -483,19 +496,113 @@ function OverlayTab(): JSX.Element {
             onChange={(v) => patch({ overlayHotkey: v })}
           />
         </Field>
-        <Field label={t('overlay_test')} desc={t('overlay_test_desc')}>
-          <button
-            onClick={() => window.api.toggleOverlay()}
-            disabled={!settings.overlayEnabled}
-            className="btn btn-ghost"
-          >
-            {t('overlay_show')}
-          </button>
+        <Field label={t('hud_enabled')} desc={t('hud_enabled_desc')}>
+          <Switch checked={settings.hudEnabled} onChange={(v) => patch({ hudEnabled: v })} />
         </Field>
       </Group>
+      {settings.overlayEnabled && settings.hudEnabled && (
+        <div className="panel">
+          <HudEditor />
+        </div>
+      )}
       <RiskNote />
       <p className="text-[12.5px] leading-snug text-dim">
-        {t('overlay_borderless')} {t('overlay_privacy')}
+        {t('overlay_focus_note')} {t('overlay_display_note')} {t('overlay_privacy')}
+      </p>
+    </div>
+  )
+}
+
+function HistoryTab(): JSX.Element {
+  const t = useT()
+  const { settings, patch } = useSettings()
+  const [tilt, setTilt] = useState(settings.tiltThreshold)
+  const [result, setResult] = useState<{ kind: 'export' | 'import'; r: TransferResult } | null>(
+    null
+  )
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => setTilt(settings.tiltThreshold), [settings.tiltThreshold])
+
+  const run = async (kind: 'export' | 'import'): Promise<void> => {
+    setBusy(true)
+    const r =
+      kind === 'export' ? await window.api.exportHistory() : await window.api.importHistory()
+    setBusy(false)
+    if (r.ok || r.error) setResult({ kind, r })
+  }
+
+  const message = result
+    ? result.r.ok
+      ? t(result.kind === 'export' ? 'backup_exported' : 'backup_imported').replace(
+          '{n}',
+          String(result.r.count)
+        )
+      : t('backup_failed')
+    : null
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Group title={t('group_history')}>
+        <Field label={t('history_enabled')} desc={t('history_enabled_desc')}>
+          <Switch
+            checked={settings.historyEnabled}
+            onChange={(v) => patch({ historyEnabled: v })}
+          />
+        </Field>
+        <Field label={t('post_match_notify')} desc={t('post_match_notify_desc')}>
+          <Switch
+            checked={settings.postMatchNotify}
+            onChange={(v) => patch({ postMatchNotify: v })}
+          />
+        </Field>
+      </Group>
+
+      <Group title={t('group_wellbeing')}>
+        <Field label={t('tilt_enabled')} desc={t('tilt_enabled_desc')}>
+          <Switch checked={settings.tiltEnabled} onChange={(v) => patch({ tiltEnabled: v })} />
+        </Field>
+        {settings.tiltEnabled && (
+          <Field label={t('tilt_threshold')} desc={t('tilt_threshold_desc')}>
+            <div className="flex items-center gap-3">
+              <Slider
+                value={tilt}
+                min={TILT_RANGE[0]}
+                max={TILT_RANGE[1]}
+                onChange={setTilt}
+                onCommit={(v) => patch({ tiltThreshold: v })}
+              />
+              <span className="display w-8 text-end text-[15px] text-muted">{tilt}</span>
+            </div>
+          </Field>
+        )}
+      </Group>
+
+      <Group title={t('group_backup')}>
+        <Field label={t('backup_export')} desc={t('backup_export_desc')}>
+          <button onClick={() => void run('export')} disabled={busy} className="btn btn-ghost">
+            <Download size={13} />
+            {t('backup_export_btn')}
+          </button>
+        </Field>
+        <Field label={t('backup_import')} desc={t('backup_import_desc')}>
+          <button onClick={() => void run('import')} disabled={busy} className="btn btn-ghost">
+            <Upload size={13} />
+            {t('backup_import_btn')}
+          </button>
+        </Field>
+        {message && (
+          <div
+            className={`px-4 py-2.5 text-[12.5px] ${result?.r.ok ? 'text-good' : 'text-accent'}`}
+            role="status"
+          >
+            {message}
+          </div>
+        )}
+      </Group>
+      <p className="flex items-start gap-2 text-[12.5px] leading-snug text-dim">
+        <FolderOpen size={14} className="mt-0.5 shrink-0" />
+        {t('history_storage_note')}
       </p>
     </div>
   )

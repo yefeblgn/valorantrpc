@@ -1,8 +1,22 @@
 import { DEFAULT_TEMPLATES, type PresenceTemplates } from './templates'
 
-export type PageKey = 'home' | 'match' | 'settings' | 'about'
+export type PageKey = 'home' | 'match' | 'career' | 'settings' | 'about'
 
-export type Language = 'tr' | 'en'
+export const LANGUAGES = ['tr', 'en', 'es', 'fr', 'ja', 'zh', 'ar'] as const
+
+export type Language = (typeof LANGUAGES)[number]
+
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  tr: 'Türkçe',
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  ja: '日本語',
+  zh: '简体中文',
+  ar: 'العربية'
+}
+
+export const RTL_LANGUAGES: readonly Language[] = ['ar']
 
 export type SessionState = 'idle' | 'menus' | 'pregame' | 'ingame'
 
@@ -101,7 +115,28 @@ export interface Settings {
 
   overlayEnabled: boolean
   overlayHotkey: string
+  hudEnabled: boolean
+  hudCompact: boolean
+  hudLayout: HudLayout
+
+  historyEnabled: boolean
+  postMatchNotify: boolean
+  tiltEnabled: boolean
+  tiltThreshold: number
+  rankGoal: number
 }
+
+export interface HudLayout {
+  x: number
+  y: number
+  scale: number
+  opacity: number
+}
+
+export const DEFAULT_HUD_LAYOUT: HudLayout = { x: 0.975, y: 0.17, scale: 1, opacity: 0.88 }
+export const HUD_SCALE_RANGE: [number, number] = [0.7, 1.4]
+export const HUD_OPACITY_RANGE: [number, number] = [0.5, 1]
+export const TILT_RANGE: [number, number] = [2, 6]
 
 export const DEFAULT_SETTINGS: Settings = {
   language: 'en',
@@ -140,7 +175,15 @@ export const DEFAULT_SETTINGS: Settings = {
   autolockEnabled: false,
   autolockAgent: '',
   overlayEnabled: false,
-  overlayHotkey: 'Ctrl+T'
+  overlayHotkey: 'Ctrl+T',
+  hudEnabled: true,
+  hudCompact: false,
+  hudLayout: DEFAULT_HUD_LAYOUT,
+  historyEnabled: true,
+  postMatchNotify: true,
+  tiltEnabled: false,
+  tiltThreshold: 3,
+  rankGoal: 0
 }
 
 export interface PlayerStats {
@@ -182,13 +225,48 @@ export interface MatchTeam {
   avgRank: { name: string; icon: string | null } | null
 }
 
+export interface MapAgentStat {
+  uuid: string
+  name: string
+  icon: string | null
+  games: number
+  wins: number
+}
+
+export interface MapStats {
+  state: 'syncing' | 'ready'
+  sample: number
+  agents: MapAgentStat[]
+}
+
 export interface MatchReport {
   matchId: string
   phase: 'pregame' | 'ingame'
   mapName: string
   mapSplash: string | null
+  mapIcon: string | null
   modeName: string
+  modeIcon: string | null
   teams: MatchTeam[]
+  mapStats: MapStats | null
+}
+
+export interface NavigateTarget {
+  page: PageKey
+  matchId?: string
+}
+
+export type ShareAction = 'copy' | 'save'
+
+export interface TransferResult {
+  ok: boolean
+  count: number
+  error?: string
+}
+
+export interface OverlayView {
+  tracker: boolean
+  hud: boolean
 }
 
 export interface BuiltPresence {

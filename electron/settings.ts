@@ -1,9 +1,16 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { app } from 'electron'
 import {
+  DEFAULT_HUD_LAYOUT,
   DEFAULT_SETTINGS,
+  HUD_OPACITY_RANGE,
+  HUD_SCALE_RANGE,
+  LANGUAGES,
+  TILT_RANGE,
   UI_SCALES,
   WINDOW_SIZES,
+  type HudLayout,
+  type Language,
   type ThemeMode,
   type WindowSizeKey,
   type LargeImageMode,
@@ -70,11 +77,27 @@ function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
 
+function clamp(value: unknown, [min, max]: [number, number], fallback: number): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback
+}
+
+function hudLayout(value: unknown): HudLayout {
+  const v = (value && typeof value === 'object' ? value : {}) as Partial<HudLayout>
+  const d = DEFAULT_HUD_LAYOUT
+  return {
+    x: clamp(v.x, [0, 1], d.x),
+    y: clamp(v.y, [0, 1], d.y),
+    scale: clamp(v.scale, HUD_SCALE_RANGE, d.scale),
+    opacity: clamp(v.opacity, HUD_OPACITY_RANGE, d.opacity)
+  }
+}
+
 function sanitize(s: Settings): Settings {
   const d = DEFAULT_SETTINGS
   return {
     ...s,
-    language: s.language === 'tr' ? 'tr' : 'en',
+    language: oneOf<Language>(s.language, [...LANGUAGES], d.language),
     languageDetected: bool(s.languageDetected, d.languageDetected),
     rpcEnabled: bool(s.rpcEnabled, d.rpcEnabled),
     autostart: bool(s.autostart, d.autostart),
@@ -119,7 +142,15 @@ function sanitize(s: Settings): Settings {
     overlayHotkey:
       typeof s.overlayHotkey === 'string' && s.overlayHotkey.trim()
         ? s.overlayHotkey.trim().slice(0, 48)
-        : d.overlayHotkey
+        : d.overlayHotkey,
+    hudEnabled: bool(s.hudEnabled, d.hudEnabled),
+    hudCompact: bool(s.hudCompact, d.hudCompact),
+    hudLayout: hudLayout(s.hudLayout),
+    historyEnabled: bool(s.historyEnabled, d.historyEnabled),
+    postMatchNotify: bool(s.postMatchNotify, d.postMatchNotify),
+    tiltEnabled: bool(s.tiltEnabled, d.tiltEnabled),
+    tiltThreshold: Math.round(clamp(s.tiltThreshold, TILT_RANGE, d.tiltThreshold)),
+    rankGoal: Math.round(clamp(s.rankGoal, [0, 24], d.rankGoal))
   }
 }
 

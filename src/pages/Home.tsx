@@ -4,12 +4,13 @@ import { PlayerCard } from '../components/PlayerCard'
 import { LiveMatch } from '../components/LiveMatch'
 import { DiscordPreview } from '../components/DiscordPreview'
 import { JoinRequests } from '../components/JoinRequests'
+import { CareerCards } from '../components/CareerCards'
 import { Switch } from '../components/ui/Switch'
 import { Tip } from '../components/ui/Tip'
 import { useStore } from '../store'
 import { useT } from '../lib/i18n'
 
-export function Home(): JSX.Element {
+export function Home({ onOpenMatch }: { onOpenMatch: (id: string) => void }): JSX.Element {
   const t = useT()
   const snap = useStore((s) => s.snapshot)
   const rpcEnabled = useStore((s) => s.settings?.rpcEnabled ?? true)
@@ -40,7 +41,7 @@ export function Home(): JSX.Element {
                     onClick={() => void patch({ streamerMode: !streamer })}
                     aria-pressed={streamer}
                     aria-label={t('streamer_mode')}
-                    className={`mr-1 flex h-6 w-6 items-center justify-center border transition-colors ${
+                    className={`me-1 flex h-6 w-6 items-center justify-center border transition-colors ${
                       streamer
                         ? 'border-accent bg-accent/15 text-accent'
                         : 'border-line-2 text-dim hover:border-dim hover:text-muted'
@@ -63,6 +64,7 @@ export function Home(): JSX.Element {
           <DiscordPreview presence={snap.presence} rpcEnabled={rpcEnabled} />
         </section>
       </div>
+      <CareerCards onOpen={onOpenMatch} />
     </div>
   )
 }

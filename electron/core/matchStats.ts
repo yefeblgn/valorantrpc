@@ -1,8 +1,9 @@
 import { EventEmitter } from 'events'
-import type { MatchPlayer, MatchReport, MatchTeam, PlayerStats } from '@shared/types'
+import type { MapStats, MatchPlayer, MatchReport, MatchTeam, PlayerStats } from '@shared/types'
 import { t } from '@shared/i18n'
 import type { PlayerName, RiotApi } from '../riot/api'
 import type { Content } from '../riot/content'
+import type { HistoryService } from '../history/service'
 
 const ROSTER_REFRESH = { pregame: 4000, ingame: 30_000 }
 const STATS_TTL = 15 * 60 * 1000
@@ -131,8 +132,12 @@ export class MatchStats extends EventEmitter {
   private readonly stats = new Map<string, CachedStats>()
   private readonly details = new Map<string, Map<string, Line>>()
 
-  constructor(private readonly content: Content) {
+  constructor(
+    private readonly content: Content,
+    private readonly history: HistoryService
+  ) {
     super()
+    history.on('changed', () => this.publish())
   }
 
   getReport(): MatchReport | null {
@@ -337,9 +342,25 @@ export class MatchStats extends EventEmitter {
     return { name: this.content.tierName(tier), icon: this.content.tierIcon(tier) }
   }
 
+  private mapStats(): MapStats | null {
+    if (!this.meta.mapPath || !this.history.puuid) return null
+    const record = this.history.forMap(this.meta.mapPath)
+    return {
+      state: this.history.isReady() ? 'ready' : 'syncing',
+      sample: record.sample,
+      agents: record.agents.map((a) => ({
+        uuid: a.agent,
+        name: this.content.agentName(a.agent),
+        icon: this.content.agentIcon(a.agent),
+        games: a.games,
+        wins: a.wins
+      }))
+    }
+  }
+
   private publish(): void {
     const target = this.target
-    if (!target) return
+    if (!target || !this.roster.length) return
     const allyId = this.roster.find((p) => p.puuid === this.self)?.teamId ?? ''
     const byTeam = new Map<string, MatchPlayer[]>()
     for (const p of this.roster) {
@@ -386,10 +407,13 @@ export class MatchStats extends EventEmitter {
       phase: target.phase,
       mapName,
       mapSplash,
+      mapIcon: this.content.mapIcon(this.meta.mapPath),
       modeName: this.meta.custom
         ? t(this.content.language, 'custom')
         : this.content.modeName(this.meta.queueId),
-      teams
+      modeIcon: this.content.modeIcon(this.meta.custom ? 'custom' : this.meta.queueId),
+      teams,
+      mapStats: this.mapStats()
     }
     this.emit('report', this.report)
   }

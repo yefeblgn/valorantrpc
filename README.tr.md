@@ -56,9 +56,45 @@ Tamamen senin bilgisayarında çalışır. API anahtarı, hesap girişi ya da ar
   </tr>
   <tr>
     <td valign="top">
+      <img src=".github/assets/icons/hud.svg" width="26" alt=""><br>
+      <b>Ajan seçimi HUD'u</b><br>
+      Ajan seçimi başlar başlamaz takımının rankı, perde kazanma oranı ve K/D'si, ayrıca o haritadaki en iyi üç ajanın ekranda. Oyundan çıkmadan oyuncuya tıklayıp detayına bakabilir ya da Riot ID'sini kopyalayabilir, kartı istediğin yere sürükleyebilir, küçültebilir ya da kapatabilirsin.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/career.svg" width="26" alt=""><br>
+      <b>Kariyer, çevrimdışı da</b><br>
+      Oynadıkça kendi maç geçmişin bilgisayarına kaydedilir; VALORANT ve Riot Client kapalıyken de bakabilirsin. Güncellemeler ve yeniden kurulum silmez, tek dosyaya yedeklenebilir.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/rounds.svg" width="26" alt=""><br>
+      <b>Her tur, baştan sona</b><br>
+      Tam skor tablosu, tur tur zaman çizelgesi, spike'ı kimin nereye ne zaman kurduğu, kimin imha ettiği, silahlarıyla öldürme akışı, herkesin teçhizatı ve leşleri, ölümleri ve kurulumları gösteren mini harita.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/analysis.svg" width="26" alt=""><br>
+      <b>Ajanlar, silahlar ve analiz</b><br>
+      Ajan ve haritaya göre kazanma oranı, KDA, ACS, ADR ve HS%; en iyi silahların ve seni en çok öldüren silah; tabanca, eko, zorla ve tam alım turları, taraflar, açılış düelloları, clutch'lar ve kişisel rekorlar.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src=".github/assets/icons/rank.svg" width="26" alt=""><br>
+      <b>Rank ilerlemesi</b><br>
+      Terfi ve düşüşleri işaretli zaman içinde RR, son RR değişimleri ve kaç maç sürebileceğini tahmin eden rank hedefi. Ana sayfa bu oturumdaki galibiyet, mağlubiyet ve net RR'ını gösterir.
+    </td>
+    <td valign="top">
+      <img src=".github/assets/icons/share.svg" width="26" alt=""><br>
+      <b>Maçını paylaş</b><br>
+      Herhangi bir maçın skor tablosunu Discord'a yapıştırmak için resim olarak kopyala ya da PNG kaydet. Her maç biter bitmez bir bildirim özetini verir.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
       <img src=".github/assets/icons/hotkey.svg" width="26" alt=""><br>
       <b>Kısayolla oyun içi panel</b><br>
-      <kbd>Ctrl</kbd> + <kbd>T</kbd> (ya da kendi kaydettiğin kısayol) paneli oyunun üstünde yumuşakça açar; tekrar basınca kapanır.
+      <kbd>Ctrl</kbd> + <kbd>T</kbd> (ya da kendi kaydettiğin kısayol) paneli oyunun üstünde yumuşakça açar; Tam Ekran'da da çalışır ve çözünürlüğüne göre ölçeklenir. Kısayol yalnızca VALORANT öndeyken çalışır.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/templates.svg" width="26" alt=""><br>
@@ -93,8 +129,8 @@ Tamamen senin bilgisayarında çalışır. API anahtarı, hesap girişi ya da ar
   <tr>
     <td valign="top">
       <img src=".github/assets/icons/notify.svg" width="26" alt=""><br>
-      <b>Algılama bildirimi</b><br>
-      VALORANT algılanıp durumun yayına girdiğinde Windows bildirimi gelir; tıklayınca uygulama açılır.
+      <b>Bildirimler</b><br>
+      VALORANT algılandığında haber verir, her maçtan sonra özet gönderir ve istersen art arda kayıplardan sonra nazikçe mola önerir.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/update.svg" width="26" alt=""><br>
@@ -106,12 +142,12 @@ Tamamen senin bilgisayarında çalışır. API anahtarı, hesap girişi ya da ar
     <td valign="top">
       <img src=".github/assets/icons/privacy.svg" width="26" alt=""><br>
       <b>Baştan yerel</b><br>
-      Bilgisayarındaki Riot Client'tan okur. Hiçbir veri bize ya da başka bir sunucuya gönderilmez.
+      Bilgisayarındaki Riot Client'tan okur, maç geçmişin de bilgisayarında kalır. Hiçbir veri bize ya da başka bir sunucuya gönderilmez.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/language.svg" width="26" alt=""><br>
-      <b>Türkçe ve İngilizce</b><br>
-      Arayüz ve tüm Discord satırları iki dilde; istemci dili ilk açılışta otomatik algılanır.
+      <b>Yedi dil</b><br>
+      Arayüz ve tüm Discord satırları Türkçe, English, Español, Français, 日本語, 简体中文 ve العربية (sağdan sola) dillerinde; istemci dili ilk açılışta otomatik algılanır.
     </td>
   </tr>
   <tr>
@@ -143,6 +179,7 @@ Maç Analizi, tracker sitelerinin yaptığı gibi kiminle ve kime karşı oynad�
 
 - **Ajan seçimi:** lobi kurulur kurulmaz takımın görünür. Oyuncular ajan seçip kilitledikçe satırlar güncellenir.
 - **Maç içi:** iki takım yan yana listelenir. Takımların ortalama rankı başlıkta yazar.
+- **Ajan seçimi HUD'u:** küçük bir kart takımının rankını, bu perdedeki kazanma oranını ve K/D'sini, ayrıca bu haritada en çok oynadığın üç ajanı kazanma oranlarıyla gösterir. Ajan seçiminde kısayola basmadan kendiliğinden gelir. Ajan seçiminde imleç serbest olduğu için oyundan odak almadan bir oyuncuya tıklayıp zirve rankını, perde kaydını, KDA'sını ve seviyesini görebilir, Riot ID'sini kopyalayabilir, kartı başlığından sürükleyebilir, yalnızca en iyi ajanlarını gösterecek şekilde küçültebilir ya da o maç için kapatabilirsin. Konum, boyut ve arka plan **Ayarlar → Maç Analizi**'nde canlı önizlemeyle ayarlanır.
 - **Nerede:** uygulamadaki **Canlı Maç** sayfasında ve kısayolla açılan oyun içi panelde.
 
 | Sütun | Ne gösterir |
@@ -156,13 +193,29 @@ Maç Analizi, tracker sitelerinin yaptığı gibi kiminle ve kime karşı oynad�
 
 Kendi satırın **SEN**, parti arkadaşların **PARTİ** ile işaretlenir. Riot'un *adımı gizle* ayarını açmış oyuncular gizli kalır: ajanlarını görürsün, Riot ID'lerini asla.
 
-**Kısayol.** Varsayılanı <kbd>Ctrl</kbd> + <kbd>T</kbd>. Değiştirmek için **Ayarlar → Maç Analizi**'ne gir, kısayol kutusuna tıkla ve istediğin tuşlara bas. <kbd>Alt</kbd> + <kbd>Q</kbd> gibi kombinasyonlar da, <kbd>F6</kbd>, <kbd>Insert</kbd>, <kbd>Home</kbd> gibi tek tuşlar da olur. <kbd>Esc</kbd> iptal eder.
+**Kısayol.** Varsayılanı <kbd>Ctrl</kbd> + <kbd>T</kbd>. Değiştirmek için **Ayarlar → Maç Analizi**'ne gir, kısayol kutusuna tıkla ve istediğin tuşlara bas. <kbd>Alt</kbd> + <kbd>Q</kbd> gibi kombinasyonlar da, <kbd>F6</kbd>, <kbd>Insert</kbd>, <kbd>Home</kbd> gibi tek tuşlar da olur. <kbd>Esc</kbd> iptal eder. Kısayol yalnızca VALORANT öndeki pencereyken çalışır; masaüstünde paneli açmaz ve tuş kombinasyonunu diğer uygulamalardan çalmaz.
 
 > [!IMPORTANT]
-> Panel oyunun üstünde ancak VALORANT ekran modu **Pencereli Tam Ekran** olduğunda görünür. Windows, tam ekran moddaki oyunların üstüne başka pencere çizdirmez. Bu durumda Canlı Maç sayfasını ikinci ekranda ya da <kbd>Alt</kbd> + <kbd>Tab</kbd> ile kullanabilirsin.
+> Panel ve HUD oyun penceresini takip eder ve çözünürlüğe göre ölçeklenir; **Tam Ekran**'da da **Pencereli Tam Ekran**'da da çalışır. Tam Ekranda görünmüyorsa `VALORANT-Win64-Shipping.exe` için tam ekran iyileştirmelerinin kapatılmadığını kontrol et (Özellikler → Uyumluluk) ya da Pencereli Tam Ekran'a geç.
 
 > [!WARNING]
 > Maç Analizi **varsayılan olarak kapalıdır**. Riot'un geliştirici politikası, başka oyuncuların istatistiklerini onların izni olmadan gösteren araçlara karşı. Maç sırasında takip uygulaması kullananlara geçici ceza verildiğine dair haberler de var. Açıp açmamak senin kararın ve sorumluluğun.
+
+<br>
+
+## Kariyer
+
+**Kariyer** sayfası kendi maç geçmişini bu bilgisayarda tutar; VALORANT ve Riot Client kapalıyken de çalışır. İlk seferde son 100 maçın arka planda okunur, sonra her maç biter bitmez yenisi eklenir; **Daha eski maçları yükle** daha geriye gider.
+
+- **Maçlar:** oyundaki kariyer sekmesi gibi, güne göre gruplanmış liste: harita, ajan, skor, K/D/A, ACS, HS% ve RR değişimi. Bir maçı açınca tam skor tablosu (ACS, ADR, HS%, ilk leş ve ilk ölümler, çoklu leşler), her turun nasıl bittiği, spike kurulum ve imhaları, öldürme akışı ve herkesin teçhizatıyla tur tur zaman çizelgesi, ayrıca o maç ya da o haritadaki son maçların için leş, ölüm ve kurulumları gösteren mini harita gelir. **Görseli kopyala** Discord'a yapıştırabileceğin bir skor tablosu resmini panoya koyar.
+- **Ajanlar:** oynadığın her ajan için maç, kazanma oranı, K/D, KDA, ACS, ADR, HS%, ilk leş oranı, yetenek kullanımı ve harita kırılımı.
+- **Silahlar:** leş, tur başına leş, HS%, tur başına hasar ve seni en çok öldüren silah.
+- **Analiz:** tabanca, eko, zorla ve tam alım turlarında kazanma oranı, saldırı ve savunma, açılış düelloları, 1v1'den 1v5'e clutch'lar ve kişisel rekorlar.
+- **Rank:** terfi ve düşüşleri işaretli zaman içinde RR, son RR değişimleri ve kaç maç sürebileceği tahminiyle rank hedefi.
+
+Ana sayfa **bu oturumu** (galibiyet, mağlubiyet, net RR, ACS ve K/D) ve **son maçını** gösterir. Her maçtan sonra bir bildirim özet geçer; isteğe bağlı bir hatırlatıcı da art arda kayıplardan sonra kısa bir mola önerir. İkisi de **Ayarlar → Geçmiş**'te, yedeği dışa ve içe aktarma ile birlikte.
+
+Geçmiş `%APPDATA%\ValorantRPC\data` klasöründe durur. Güncellemeler ve yeniden kurulum silmez; yalnızca o klasörü silersen gider.
 
 <br>
 
@@ -195,6 +248,7 @@ Büyük görsel oyuncu kartın, harita görseli ve mod görseli arasında deği�
 | `{oyuncu}` | `{player}` | Ad#ETİKET |
 | `{parti}` | `{party}` | 2/5 |
 | `{durum}` | `{status}` | Oyunda |
+| `{oturum}` | `{session}` | 4G 2M · +38 RR |
 
 Örnek: üstte `{ajan} · {harita}`, altta `{durum} · {skor}` yazarsan Discord'da **HUSH · Corrode** / **Oyunda · 7 - 5** görünür.
 
@@ -237,7 +291,7 @@ Gereksinimler: Windows 10 ya da 11, VALORANT, Discord masaüstü.
 ## Nasıl çalışır
 
 - Riot Client bilgisayarına yerel bir `lockfile` yazar. ValorantRPC bunu okuyup istemcinin `127.0.0.1` üzerindeki yerel API'si ile konuşur; oyunun kendisi de böyle yapar.
-- Durumun senin Riot oturumundan gelir. Maç Analizi de aynı oturumla Riot'un oyun servislerinden rank ve maç geçmişini okur.
+- Durumun senin Riot oturumundan gelir. Maç Analizi ve Kariyer de aynı oturumla Riot'un oyun servislerinden rank ve maç geçmişini okur; geçmişin sonra yalnızca bu bilgisayarda saklanır.
 - Ajan adları, harita görselleri ve rank ikonları herkese açık [valorant-api.com](https://valorant-api.com)'dan alınır ve bilgisayarında önbelleğe alınır.
 - Discord, kendi yerel IPC kanalı üzerinden güncellenir.
 
@@ -256,13 +310,25 @@ Discord masaüstü uygulamasının açık olduğundan ve **Kullanıcı Ayarları
 <details>
 <summary><b>Oyun içi panel çıkmıyor</b></summary>
 
-VALORANT ekran modunu **Pencereli Tam Ekran** yap ve Maç Analizi'nin açık olduğunu kontrol et. Tam ekran modda Canlı Maç sayfasını kullan.
+Maç Analizi'nin açık ve VALORANT'ın öndeki pencere olduğunu kontrol et. Tam Ekranda oynuyorsan VALORANT için tam ekran iyileştirmelerinin kapatılmadığına bak ya da Pencereli Tam Ekran'a geç.
 </details>
 
 <details>
 <summary><b>Kısayol çalışmıyor</b></summary>
 
-O tuş kombinasyonunu başka bir program kullanıyor olabilir. Kısayol kaydedilemediğinde ayarlar sayfası uyarı gösterir; başka bir kısayol seç.
+Kısayol yalnızca VALORANT öndeki pencereyken çalışır. Oyundayken de çalışmıyorsa o tuş kombinasyonunu başka bir program kullanıyor olabilir; kısayol kaydedilemediğinde ayarlar sayfası uyarı gösterir. Başka bir kısayol seç.
+</details>
+
+<details>
+<summary><b>Kariyer sayfası boş</b></summary>
+
+Yeni maçlar Riot Client açıkken okunur; VALORANT'ın açık olması gerekmez. İlk seferde son 100 maçın okunması bir iki dakika sürer. **Ayarlar → Geçmiş → Maç geçmişini kaydet** açık olmalı. Daha önce kaydedilen maçlar çevrimdışıyken de her zaman görünür.
+</details>
+
+<details>
+<summary><b>HUD'a tıklayamıyorum</b></summary>
+
+HUD, VALORANT kendi imlecini gösterdiği ajan seçimi sırasında tıklanabilir. Maç içindeki tam panel bilerek yalnızca gösterim amaçlıdır; oyuna gidecek bir tıklamayı asla yakalamaz.
 </details>
 
 <details>

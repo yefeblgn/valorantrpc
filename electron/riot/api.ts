@@ -18,6 +18,24 @@ export interface PartyInfo {
   members: string[]
 }
 
+export interface HistoryEntry {
+  matchId: string
+  queueId: string
+  startTime: number
+}
+
+export interface CompetitiveUpdate {
+  matchId: string
+  map: string
+  season: string
+  start: number
+  tierBefore: number
+  tier: number
+  before: number
+  after: number
+  change: number
+}
+
 export interface PlayerName {
   puuid: string
   name: string
@@ -124,6 +142,52 @@ export class RiotApi {
       return ((data.History ?? []) as Json[]).map((m) => String(m.MatchID ?? '')).filter(Boolean)
     } catch (e) {
       console.debug('[api] history error:', e)
+      return null
+    }
+  }
+
+  async historyPage(puuid: string, start: number, end: number): Promise<HistoryEntry[] | null> {
+    const url = `${this.pd}/match-history/v1/history/${puuid}?startIndex=${start}&endIndex=${end}`
+    try {
+      const data = await this.fetchJson(() => this.remoteGet(url))
+      if (!data) return null
+      return ((data.History ?? []) as Json[])
+        .map((m) => ({
+          matchId: String(m.MatchID ?? ''),
+          queueId: String(m.QueueID ?? ''),
+          startTime: Number(m.GameStartTime ?? 0)
+        }))
+        .filter((m) => m.matchId)
+    } catch (e) {
+      console.debug('[api] history page error:', e)
+      return null
+    }
+  }
+
+  async competitiveUpdates(
+    puuid: string,
+    start: number,
+    end: number
+  ): Promise<CompetitiveUpdate[] | null> {
+    const url = `${this.pd}/mmr/v1/players/${puuid}/competitiveupdates?startIndex=${start}&endIndex=${end}&queue=competitive`
+    try {
+      const data = await this.fetchJson(() => this.remoteGet(url))
+      if (!data) return null
+      return ((data.Matches ?? []) as Json[])
+        .map((m) => ({
+          matchId: String(m.MatchID ?? ''),
+          map: String(m.MapID ?? '').toLowerCase(),
+          season: String(m.SeasonID ?? '').toLowerCase(),
+          start: Number(m.MatchStartTime ?? 0),
+          tierBefore: Number(m.TierBeforeUpdate ?? 0),
+          tier: Number(m.TierAfterUpdate ?? 0),
+          before: Number(m.RankedRatingBeforeUpdate ?? 0),
+          after: Number(m.RankedRatingAfterUpdate ?? 0),
+          change: Number(m.RankedRatingEarned ?? 0)
+        }))
+        .filter((m) => m.matchId)
+    } catch (e) {
+      console.debug('[api] competitive updates error:', e)
       return null
     }
   }

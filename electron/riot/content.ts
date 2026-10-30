@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { AgentOption, Language } from '@shared/types'
+import type { Catalog, CatalogAgent, CatalogMap, CatalogWeapon } from '@shared/history'
 import { MEDIA, REPO_MEDIA, VALORANT_API, cacheDir } from '../constants'
 import { apiLanguage } from '@shared/i18n'
 import { webClient } from '../lib/http'
@@ -46,44 +47,235 @@ const MODE_MEDIA: Record<string, { icon: string; art: string }> = {
 const TEAM_HEALTH_MODES = new Set(['abilitydraftarena'])
 
 const MODE_NAME: Record<string, Record<Language, string>> = {
-  competitive: { tr: 'Rekabetçi', en: 'Competitive' },
-  unrated: { tr: 'Derecesiz', en: 'Unrated' },
-  swiftplay: { tr: 'Tam Gaz', en: 'Swiftplay' },
-  spikerush: { tr: 'Spike Hücum', en: 'Spike Rush' },
-  deathmatch: { tr: 'Ölüm Maçı', en: 'Deathmatch' },
-  ggteam: { tr: 'Tırmanış', en: 'Escalation' },
-  hurm: { tr: 'Takım Ölüm Maçı', en: 'Team Deathmatch' },
-  onefa: { tr: 'Kopyalama', en: 'Replication' },
-  snowball: { tr: 'Kartopu Savaşı', en: 'Snowball Fight' },
-  premier: { tr: 'Premier', en: 'Premier' },
-  custom: { tr: 'Özel Oyun', en: 'Custom Game' },
-  newmap: { tr: 'Yeni Harita', en: 'New Map' },
-  knockout: { tr: 'Nakavt', en: 'Knockout' },
-  ar1s: { tr: 'Tek Bölge Rasgele', en: 'All Random One Site' },
-  mixtape: { tr: 'Miks', en: 'Miks' },
-  skirmish: { tr: 'Çarpışma', en: 'Skirmish' },
-  ascension: { tr: 'Çarpışma: Yükseliş', en: 'Skirmish: Ascension' },
-  retake: { tr: 'Akın', en: 'Retake' },
-  fortcollins: { tr: 'Akın', en: 'Retake' },
-  summit: { tr: 'Summit', en: 'Summit' },
-  abilitydraftarena: { tr: 'Galeyan: Güç Bozulması', en: 'Gauntlet: Glitched' },
-  '': { tr: 'Lobide', en: 'In Lobby' }
+  competitive: {
+    tr: 'Rekabetçi',
+    en: 'Competitive',
+    es: 'Competitivo',
+    fr: 'Compétition',
+    ja: 'コンペティティブ',
+    zh: '竞技模式',
+    ar: 'تنافسي'
+  },
+  unrated: {
+    tr: 'Derecesiz',
+    en: 'Unrated',
+    es: 'Normal',
+    fr: 'Non classé',
+    ja: 'アンレート',
+    zh: '常规模式',
+    ar: 'غير مصنّف'
+  },
+  swiftplay: {
+    tr: 'Tam Gaz',
+    en: 'Swiftplay',
+    es: 'Partida rápida',
+    fr: 'Partie rapide',
+    ja: 'スイフトプレイ',
+    zh: '极速模式',
+    ar: 'اللعب السريع'
+  },
+  spikerush: {
+    tr: 'Spike Hücum',
+    en: 'Spike Rush',
+    es: 'Fiebre de la Spike',
+    fr: 'Spike Rush',
+    ja: 'スパイクラッシュ',
+    zh: '超速冲点',
+    ar: 'اندفاع السبايك'
+  },
+  deathmatch: {
+    tr: 'Ölüm Maçı',
+    en: 'Deathmatch',
+    es: 'Combate a muerte',
+    fr: 'Combat à mort',
+    ja: 'デスマッチ',
+    zh: '死斗模式',
+    ar: 'قتال حتى الموت'
+  },
+  ggteam: {
+    tr: 'Tırmanış',
+    en: 'Escalation',
+    es: 'Escalada',
+    fr: 'Escalade',
+    ja: 'エスカレーション',
+    zh: '升级模式',
+    ar: 'التصعيد'
+  },
+  hurm: {
+    tr: 'Takım Ölüm Maçı',
+    en: 'Team Deathmatch',
+    es: 'Combate a muerte por equipos',
+    fr: 'Combat à mort par équipe',
+    ja: 'チームデスマッチ',
+    zh: '团队死斗',
+    ar: 'قتال الفرق حتى الموت'
+  },
+  onefa: {
+    tr: 'Kopyalama',
+    en: 'Replication',
+    es: 'Replicación',
+    fr: 'Réplication',
+    ja: 'レプリケーション',
+    zh: '复制模式',
+    ar: 'التكرار'
+  },
+  snowball: {
+    tr: 'Kartopu Savaşı',
+    en: 'Snowball Fight',
+    es: 'Guerra de bolas de nieve',
+    fr: 'Bataille de boules de neige',
+    ja: '雪合戦',
+    zh: '雪球大战',
+    ar: 'معركة كرات الثلج'
+  },
+  premier: {
+    tr: 'Premier',
+    en: 'Premier',
+    es: 'Premier',
+    fr: 'Premier',
+    ja: 'プレミア',
+    zh: 'Premier',
+    ar: 'بريمير'
+  },
+  custom: {
+    tr: 'Özel Oyun',
+    en: 'Custom Game',
+    es: 'Partida personalizada',
+    fr: 'Partie personnalisée',
+    ja: 'カスタムゲーム',
+    zh: '自定义游戏',
+    ar: 'مباراة مخصّصة'
+  },
+  newmap: {
+    tr: 'Yeni Harita',
+    en: 'New Map',
+    es: 'Mapa nuevo',
+    fr: 'Nouvelle carte',
+    ja: '新マップ',
+    zh: '新地图',
+    ar: 'خريطة جديدة'
+  },
+  knockout: {
+    tr: 'Nakavt',
+    en: 'Knockout',
+    es: 'Eliminatoria',
+    fr: 'Élimination',
+    ja: 'ノックアウト',
+    zh: '淘汰赛',
+    ar: 'خروج المغلوب'
+  },
+  ar1s: {
+    tr: 'Tek Bölge Rasgele',
+    en: 'All Random One Site',
+    es: 'Todo aleatorio, una zona',
+    fr: 'Tout aléatoire, un site',
+    ja: 'オールランダム・ワンサイト',
+    zh: '全随机单点',
+    ar: 'عشوائي بالكامل، موقع واحد'
+  },
+  mixtape: {
+    tr: 'Miks',
+    en: 'Miks',
+    es: 'Miks',
+    fr: 'Miks',
+    ja: 'ミックス',
+    zh: 'Miks',
+    ar: 'ميكس'
+  },
+  skirmish: {
+    tr: 'Çarpışma',
+    en: 'Skirmish',
+    es: 'Escaramuza',
+    fr: 'Escarmouche',
+    ja: 'スカーミッシュ',
+    zh: '遭遇战',
+    ar: 'مناوشة'
+  },
+  ascension: {
+    tr: 'Çarpışma: Yükseliş',
+    en: 'Skirmish: Ascension',
+    es: 'Escaramuza: Ascensión',
+    fr: 'Escarmouche : Ascension',
+    ja: 'スカーミッシュ：アセンション',
+    zh: '遭遇战：晋升',
+    ar: 'مناوشة: الصعود'
+  },
+  retake: {
+    tr: 'Akın',
+    en: 'Retake',
+    es: 'Retoma',
+    fr: 'Reprise',
+    ja: 'リテイク',
+    zh: '回防',
+    ar: 'الاستعادة'
+  },
+  fortcollins: {
+    tr: 'Akın',
+    en: 'Retake',
+    es: 'Retoma',
+    fr: 'Reprise',
+    ja: 'リテイク',
+    zh: '回防',
+    ar: 'الاستعادة'
+  },
+  summit: {
+    tr: 'Summit',
+    en: 'Summit',
+    es: 'Summit',
+    fr: 'Summit',
+    ja: 'サミット',
+    zh: 'Summit',
+    ar: 'القمة'
+  },
+  abilitydraftarena: {
+    tr: 'Galeyan: Güç Bozulması',
+    en: 'Gauntlet: Glitched',
+    es: 'Desafío: Glitch',
+    fr: 'Défi : Glitch',
+    ja: 'ガントレット：グリッチ',
+    zh: '挑战：故障',
+    ar: 'التحدي: الخلل'
+  },
+  '': {
+    tr: 'Lobide',
+    en: 'In Lobby',
+    es: 'En el lobby',
+    fr: 'Dans le salon',
+    ja: 'ロビー',
+    zh: '大厅中',
+    ar: 'في الردهة'
+  }
 }
+
+const ABILITY_SLOTS = ['Grenade', 'Ability1', 'Ability2', 'Ultimate']
 
 interface AgentEntry {
   name: string
   role: string
   released: number
+  abilities: [string, string, string, string]
 }
 interface ApiAgent {
   uuid: string
   displayName?: string
   releaseDate?: string
   role?: { displayName?: string } | null
+  abilities?: Array<{ slot?: string; displayName?: string }> | null
 }
 interface MapEntry {
   name: string
   uuid: string
+  xMul: number
+  yMul: number
+  xAdd: number
+  yAdd: number
+}
+interface ApiWeapon {
+  uuid: string
+  displayName?: string
+  category?: string
+  displayIcon?: string | null
+  killStreamIcon?: string | null
 }
 interface TierEntry {
   name: string
@@ -111,6 +303,7 @@ export class Content {
   private tiers: Record<number, TierEntry> | null = null
   private seasons: Record<string, SeasonEntry> | null = null
   private seasonsLoading: Promise<void> | null = null
+  private weapons: Record<string, CatalogWeapon> | null = null
   private retryAt = 0
   private staleRetryAt = 0
   private loading: { language: Language; promise: Promise<void> } | null = null
@@ -121,6 +314,7 @@ export class Content {
     if (language !== this.language) {
       this.language = language
       this.agents = this.maps = this.tiers = this.seasons = null
+      this.weapons = null
       this.retryAt = 0
       this.staleRetryAt = 0
     }
@@ -246,10 +440,13 @@ export class Content {
       | ApiAgent[]
       | null
     for (const a of data ?? []) {
+      const ability = (slot: string): string =>
+        a.abilities?.find((ab) => ab.slot === slot)?.displayName ?? ''
       agents[a.uuid.toLowerCase()] = {
         name: a.displayName ?? '',
         role: a.role?.displayName ?? '',
-        released: Date.parse(a.releaseDate ?? '') || 0
+        released: Date.parse(a.releaseDate ?? '') || 0,
+        abilities: ABILITY_SLOTS.map(ability) as AgentEntry['abilities']
       }
     }
     return agents
@@ -257,10 +454,20 @@ export class Content {
 
   private async loadMaps(force: boolean): Promise<Record<string, MapEntry>> {
     const maps: Record<string, MapEntry> = {}
-    const data = (await this.fetch('maps', '/maps', force)) as Array<Record<string, string>> | null
+    const data = (await this.fetch('maps', '/maps', force)) as Array<
+      Record<string, string | number | null>
+    > | null
     for (const m of data ?? []) {
-      const url = (m.mapUrl ?? '').toLowerCase()
-      if (url) maps[url] = { name: m.displayName ?? '', uuid: m.uuid ?? '' }
+      const url = String(m.mapUrl ?? '').toLowerCase()
+      if (!url) continue
+      maps[url] = {
+        name: String(m.displayName ?? ''),
+        uuid: String(m.uuid ?? ''),
+        xMul: Number(m.xMultiplier ?? 0),
+        yMul: Number(m.yMultiplier ?? 0),
+        xAdd: Number(m.xScalarToAdd ?? 0),
+        yAdd: Number(m.yScalarToAdd ?? 0)
+      }
     }
     return maps
   }
@@ -279,6 +486,75 @@ export class Content {
       }
     }
     return tiers
+  }
+
+  private async ensureWeapons(): Promise<Record<string, CatalogWeapon>> {
+    if (this.weapons) return this.weapons
+    const language = this.language
+    const data = (await this.fetch('weapons', '/weapons')) as ApiWeapon[] | null
+    const weapons: Record<string, CatalogWeapon> = {}
+    for (const w of data ?? []) {
+      weapons[w.uuid.toLowerCase()] = {
+        name: w.displayName ?? '',
+        icon: w.displayIcon ?? null,
+        kill: w.killStreamIcon ?? null,
+        category: (w.category ?? '').split('::').pop() ?? ''
+      }
+    }
+    if (language === this.language && Object.keys(weapons).length) this.weapons = weapons
+    return weapons
+  }
+
+  async catalog(queues: string[]): Promise<Catalog> {
+    await this.ensureAll()
+    await this.ensureSeasons()
+    const weapons = await this.ensureWeapons()
+    const agents: Record<string, CatalogAgent> = {}
+    for (const [uuid, a] of Object.entries(this.agents ?? {})) {
+      agents[uuid] = {
+        name: a.name,
+        icon: `${MEDIA}/agents/${uuid}/displayicon.png`,
+        portrait: `${MEDIA}/agents/${uuid}/fullportrait.png`,
+        role: a.role,
+        abilities: a.abilities
+      }
+    }
+    const maps: Record<string, CatalogMap> = {}
+    for (const [path, m] of Object.entries(this.maps ?? {})) {
+      maps[path] = {
+        name: m.name,
+        splash: m.uuid ? `${MEDIA}/maps/${m.uuid}/splash.png` : null,
+        list: m.uuid ? `${MEDIA}/maps/${m.uuid}/listviewicon.png` : null,
+        minimap: m.uuid && m.xMul ? `${MEDIA}/maps/${m.uuid}/displayicon.png` : null,
+        xMul: m.xMul,
+        yMul: m.yMul,
+        xAdd: m.xAdd,
+        yAdd: m.yAdd
+      }
+    }
+    const seasons: Catalog['seasons'] = {}
+    for (const [id, season] of Object.entries(this.seasons ?? {})) {
+      seasons[id] = {
+        label: this.actLabel(id) || season.name,
+        start: season.start,
+        end: season.end,
+        act: season.act
+      }
+    }
+    const modes: Catalog['modes'] = {}
+    for (const q of new Set(['', 'custom', ...queues])) {
+      modes[q] = { name: this.modeName(q), icon: this.modeIcon(q) }
+    }
+    return {
+      language: this.language,
+      agents,
+      maps,
+      weapons,
+      tiers: { ...(this.tiers ?? {}) },
+      seasons,
+      modes,
+      currentAct: this.currentAct()
+    }
   }
 
   async ensureSeasons(): Promise<void> {
@@ -361,6 +637,12 @@ export class Content {
     if (!entry) return ['', null]
     const splash = entry.uuid ? `${MEDIA}/maps/${entry.uuid}/splash.png` : null
     return [entry.name ?? '', splash]
+  }
+
+  mapIcon(mapPath: string | null | undefined): string | null {
+    if (!mapPath) return null
+    const uuid = (this.maps ?? {})[mapPath.toLowerCase()]?.uuid
+    return uuid ? `${MEDIA}/maps/${uuid}/listviewicon.png` : null
   }
 
   tierName(tier: number | null | undefined): string {

@@ -11,7 +11,7 @@ export function SectionTitle({
     <div className="mb-2.5 flex min-h-6 items-center gap-2.5">
       <span className="h-[2px] w-3 shrink-0 bg-accent" />
       <h2 className="label text-muted">{children}</h2>
-      {action && <div className="ml-auto flex items-center gap-2">{action}</div>}
+      {action && <div className="ms-auto flex items-center gap-2">{action}</div>}
     </div>
   )
 }

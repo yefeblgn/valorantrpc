@@ -12,7 +12,7 @@ export function TitleBar(): JSX.Element {
   const status = statusView(snap, t)
 
   return (
-    <header className="drag flex h-10 shrink-0 items-center justify-between border-b border-line bg-surface pl-[21px]">
+    <header className="drag flex h-10 shrink-0 items-center justify-between border-b border-line bg-surface ps-[21px]">
       <div className="flex items-center gap-2.5">
         <AppLogo size={20} />
         <span className="display text-[16px] tracking-[0.08em]">
@@ -22,7 +22,7 @@ export function TitleBar(): JSX.Element {
         <StudioTag size={14} />
       </div>
       <div className="flex h-full items-center">
-        <div className="mr-2 flex h-6 items-center gap-2 border border-line px-2.5">
+        <div className="me-2 flex h-6 items-center gap-2 border border-line px-2.5">
           <span
             className={`h-1.5 w-1.5 rotate-45 ${status.active ? 'animate-pulse-dot' : ''}`}
             style={{ background: status.color }}

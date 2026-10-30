@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { apiLanguage, isRtl } from '@shared/i18n'
 import { useStore } from '../store'
 import { darken } from './format'
 
@@ -28,7 +29,9 @@ export function useAppearance({ themed = true }: { themed?: boolean } = {}): voi
   const theme = useResolvedTheme()
 
   useEffect(() => {
-    document.documentElement.lang = language
+    const root = document.documentElement
+    root.lang = language === 'zh' ? apiLanguage(language) : language
+    root.dir = isRtl(language) ? 'rtl' : 'ltr'
   }, [language])
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import * as RSelect from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
+import { useDir } from '../../lib/i18n'
 
 export interface Option {
   value: string
@@ -20,8 +21,9 @@ export function Select({
   placeholder?: string
   minWidth?: number
 }): JSX.Element {
+  const dir = useDir()
   return (
-    <RSelect.Root value={value} onValueChange={onChange}>
+    <RSelect.Root value={value} onValueChange={onChange} dir={dir}>
       <RSelect.Trigger
         style={{ minWidth }}
         className="input group flex items-center justify-between gap-2"
@@ -49,7 +51,7 @@ export function Select({
                 className="flex cursor-pointer items-center gap-2 rounded-[1px] px-2.5 py-1.5 text-[13px] text-muted outline-none data-[highlighted]:bg-accent/15 data-[highlighted]:text-text data-[state=checked]:text-text data-[disabled]:cursor-default data-[disabled]:opacity-40"
               >
                 <RSelect.ItemText>{o.label}</RSelect.ItemText>
-                <RSelect.ItemIndicator className="ml-auto">
+                <RSelect.ItemIndicator className="ms-auto">
                   <Check size={13} className="text-accent" />
                 </RSelect.ItemIndicator>
               </RSelect.Item>

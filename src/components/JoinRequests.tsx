@@ -27,7 +27,7 @@ export function JoinRequests({ requests }: { requests: JoinRequest[] }): JSX.Ele
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: 12 }}
-              className="panel flex items-center gap-3 border-l-[3px] border-l-discord px-3.5 py-2.5"
+              className="panel flex items-center gap-3 border-s-[3px] border-s-discord px-3.5 py-2.5"
             >
               <Avatar url={discordAvatarUrl(r)} />
               <div className="min-w-0 flex-1">
@@ -36,7 +36,7 @@ export function JoinRequests({ requests }: { requests: JoinRequest[] }): JSX.Ele
                 </div>
                 <div className="truncate text-[12px] text-dim">{t('join_request_desc')}</div>
               </div>
-              <span className="display w-7 text-right text-[14px] tabular-nums text-dim">
+              <span className="display w-7 text-end text-[14px] tabular-nums text-dim">
                 {Math.max(0, Math.ceil((r.expiresAt - now) / 1000))}
               </span>
               <Tip label={t('decline')} side="top">

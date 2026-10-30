@@ -24,7 +24,8 @@ export const TEMPLATE_VARS = [
   { key: 'level', tr: 'seviye' },
   { key: 'player', tr: 'oyuncu' },
   { key: 'party', tr: 'parti' },
-  { key: 'status', tr: 'durum' }
+  { key: 'status', tr: 'durum' },
+  { key: 'session', tr: 'oturum' }
 ] as const
 
 export type TemplateVar = (typeof TEMPLATE_VARS)[number]['key']
