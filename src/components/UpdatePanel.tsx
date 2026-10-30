@@ -11,7 +11,7 @@ export function UpdatePanel(): JSX.Element {
   const downloading = !!info?.downloading
   const downloaded = !!info?.downloaded
   const available = !!info?.available
-  const portable = !!info?.portable
+  const manual = !!info?.manual
   const speedMb = info ? (info.bytesPerSecond / 1024 / 1024).toFixed(1) : '0'
 
   return (
@@ -69,13 +69,13 @@ export function UpdatePanel(): JSX.Element {
               <div className="text-[13.5px] font-medium text-warn">
                 {t('update_available')} (v{info?.latestVersion})
               </div>
-              {portable && (
+              {manual && (
                 <div className="mt-1 text-[12.5px] text-dim">{t('portable_update_desc')}</div>
               )}
             </div>
             <button onClick={start} className="btn btn-primary">
-              {portable ? <ExternalLink size={13} /> : <Download size={13} />}
-              {portable ? t('open_release_page') : t('download_install')}
+              {manual ? <ExternalLink size={13} /> : <Download size={13} />}
+              {manual ? t('open_release_page') : t('download_install')}
             </button>
           </div>
         ) : info?.error ? (

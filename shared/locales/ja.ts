@@ -494,6 +494,7 @@ export const ja: Strings = {
   hud_close: 'この試合では閉じる',
   hud_compact: 'コンパクト',
   hud_expand: '展開',
+  overlay_close: '閉じる',
   hud_details: '詳細',
   hud_sample_size: 'サンプル',
   hud_recent_comp: '直近のコンペ試合',

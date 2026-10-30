@@ -34,7 +34,10 @@ export const IPC = {
   clipboardWrite: 'clipboard:write',
   shareImage: 'share:image',
   shareReady: 'share:ready',
-  overlayInteractive: 'overlay:interactive',
+  shareRequest: 'share:request',
+  shareWarm: 'share:warm',
+  overlayRegion: 'overlay:region',
+  overlayClose: 'overlay:close',
   overlayDismiss: 'overlay:dismiss',
   navigate: 'app:navigate',
   takeNavigate: 'app:take-navigate'

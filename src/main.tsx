@@ -14,17 +14,11 @@ import './index.css'
 
 const hash = window.location.hash
 const overlay = hash === '#overlay'
-const share = hash.startsWith('#share/') ? hash.slice('#share/'.length).split('/') : null
+const share = hash === '#share'
 if (overlay) document.documentElement.classList.add('overlay-view')
 
 function root(): JSX.Element {
-  if (share)
-    return (
-      <ShareApp
-        puuid={decodeURIComponent(share[0] ?? '')}
-        id={decodeURIComponent(share[1] ?? '')}
-      />
-    )
+  if (share) return <ShareApp />
   return overlay ? <OverlayApp /> : <App />
 }
 

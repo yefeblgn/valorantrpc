@@ -118,6 +118,7 @@ export interface Settings {
   hudEnabled: boolean
   hudCompact: boolean
   hudLayout: HudLayout
+  trackerCompact: boolean
 
   historyEnabled: boolean
   postMatchNotify: boolean
@@ -179,6 +180,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hudEnabled: true,
   hudCompact: false,
   hudLayout: DEFAULT_HUD_LAYOUT,
+  trackerCompact: false,
   historyEnabled: true,
   postMatchNotify: true,
   tiltEnabled: false,
@@ -269,6 +271,19 @@ export interface OverlayView {
   hud: boolean
 }
 
+export interface ShareJob {
+  token: number
+  puuid: string
+  id: string
+}
+
+export interface OverlayRegion {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface BuiltPresence {
   details?: string
   state?: string
@@ -352,6 +367,7 @@ export interface UpdateInfo {
   checking: boolean
   checkedAt: number | null
   portable: boolean
+  manual: boolean
   available: boolean
   currentVersion: string
   latestVersion: string

@@ -19,6 +19,7 @@ import type { HudLayout, MapAgentStat, MapStats, MatchPlayer, MatchReport } from
 import { AppLogo } from '../components/brand'
 import { FadeImg } from '../components/ui/FadeImg'
 import { Keys } from '../components/ui/Keys'
+import { Tip } from '../components/ui/Tip'
 import { useT } from '../lib/i18n'
 
 const MAX_ROWS = 5
@@ -218,14 +219,15 @@ function HeadButton({
   children: JSX.Element
 }): JSX.Element {
   return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="flex h-6 w-6 items-center justify-center bg-black/40 text-muted transition-colors hover:bg-black/70 hover:text-text"
-    >
-      {children}
-    </button>
+    <Tip label={label} side="bottom">
+      <button
+        onClick={onClick}
+        aria-label={label}
+        className="flex h-6 w-6 items-center justify-center bg-black/40 text-muted transition-colors hover:bg-black/70 hover:text-text"
+      >
+        {children}
+      </button>
+    </Tip>
   )
 }
 

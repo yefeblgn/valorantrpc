@@ -4,6 +4,7 @@ import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, shell }
 import type {
   MatchReport,
   NavigateTarget,
+  OverlayRegion,
   PlayerInfo,
   Settings,
   ShareAction,
@@ -56,6 +57,15 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', () => showWindow())
   bootstrap()
+}
+
+function overlayRegion(v: unknown): OverlayRegion | null {
+  if (!v || typeof v !== 'object') return null
+  const r = v as Record<string, unknown>
+  const nums = [r.x, r.y, r.width, r.height]
+  if (!nums.every((n) => typeof n === 'number' && Number.isFinite(n))) return null
+  const [x, y, width, height] = nums as number[]
+  return width > 0 && height > 0 ? { x, y, width, height } : null
 }
 
 function broadcast(channel: string, payload: unknown): void {
@@ -254,7 +264,10 @@ function createWindow(): void {
     if (url !== mainWindow?.webContents.getURL()) e.preventDefault()
   })
 
-  mainWindow.on('closed', () => overlay?.destroy())
+  mainWindow.on('closed', () => {
+    overlay?.destroy()
+    share.dispose()
+  })
 
   loadRenderer(mainWindow)
 }
@@ -303,9 +316,10 @@ function registerIpc(): void {
   ipcMain.handle(IPC.hotkeyStatus, () => overlay?.hotkeyOk() ?? true)
   ipcMain.handle(IPC.windowInfo, () => windowInfo(mainWindow))
 
-  ipcMain.on(IPC.overlayInteractive, (_e, interactive: unknown) =>
-    overlay?.setInteractive(interactive === true)
+  ipcMain.on(IPC.overlayRegion, (_e, region: unknown, hold: unknown) =>
+    overlay?.setRegion(overlayRegion(region), hold === true)
   )
+  ipcMain.on(IPC.overlayClose, () => overlay?.close())
   ipcMain.on(IPC.overlayDismiss, () => {
     dismissedMatch = poller.match.getReport()?.matchId ?? ''
     syncHud(poller.match.getReport())
@@ -336,6 +350,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.historyExport, () => transfer('export'))
   ipcMain.handle(IPC.historyImport, () => transfer('import'))
   ipcMain.handle(IPC.catalogGet, () => poller.content.catalog(poller.history.queues()))
+  ipcMain.on(IPC.shareWarm, () => share.warm())
   ipcMain.handle(IPC.shareImage, (_e, id: unknown, action: unknown, puuid: unknown) => {
     if (typeof id !== 'string') return false
     const mode: ShareAction = action === 'save' ? 'save' : 'copy'
@@ -427,7 +442,10 @@ function bootstrap(): void {
     poller.start()
 
     const settings = loadSettings()
-    overlay = new Overlay(loadRenderer)
+    overlay = new Overlay(loadRenderer, {
+      attach: (handle) => game.attachOverlay(handle),
+      returnFocus: () => game.returnFocus()
+    })
     overlay.setHotkey(settings.overlayHotkey, settings.overlayEnabled)
     syncGame()
     maybeAutoCheck(settings.autoCheckUpdates)

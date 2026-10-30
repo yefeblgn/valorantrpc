@@ -494,6 +494,7 @@ export const en = {
   hud_close: 'Close for this match',
   hud_compact: 'Compact',
   hud_expand: 'Expand',
+  overlay_close: 'Close',
   hud_details: 'Details',
   hud_sample_size: 'Sample',
   hud_recent_comp: 'recent comp matches',

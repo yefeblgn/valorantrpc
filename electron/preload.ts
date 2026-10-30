@@ -3,9 +3,11 @@ import type {
   AgentOption,
   MatchReport,
   NavigateTarget,
+  OverlayRegion,
   OverlayView,
   Settings,
   ShareAction,
+  ShareJob,
   TransferResult,
   Snapshot,
   UpdateInfo,
@@ -54,8 +56,9 @@ const api = {
   pauseHotkey: (paused: boolean): void => ipcRenderer.send(IPC.hotkeyPause, paused),
   getHotkeyStatus: (): Promise<boolean> => ipcRenderer.invoke(IPC.hotkeyStatus),
   getWindowInfo: (): Promise<WindowInfo> => ipcRenderer.invoke(IPC.windowInfo),
-  setOverlayInteractive: (interactive: boolean): void =>
-    ipcRenderer.send(IPC.overlayInteractive, interactive),
+  setOverlayRegion: (region: OverlayRegion | null, hold: boolean): void =>
+    ipcRenderer.send(IPC.overlayRegion, region, hold),
+  closeOverlay: (): void => ipcRenderer.send(IPC.overlayClose),
   dismissHud: (): void => ipcRenderer.send(IPC.overlayDismiss),
   copyText: (text: string): void => ipcRenderer.send(IPC.clipboardWrite, text),
 
@@ -73,7 +76,10 @@ const api = {
 
   shareMatch: (id: string, action: ShareAction, puuid?: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.shareImage, id, action, puuid),
-  shareReady: (): void => ipcRenderer.send(IPC.shareReady),
+  shareReady: (token: number | null, ok = true): void =>
+    ipcRenderer.send(IPC.shareReady, token, ok),
+  onShareRequest: (cb: (job: ShareJob) => void): Unsubscribe => subscribe(IPC.shareRequest, cb),
+  warmShare: (): void => ipcRenderer.send(IPC.shareWarm),
   onNavigate: (cb: () => void): Unsubscribe => subscribe(IPC.navigate, cb),
   takeNavigate: (): Promise<NavigateTarget | null> => ipcRenderer.invoke(IPC.takeNavigate)
 }

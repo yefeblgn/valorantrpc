@@ -504,6 +504,7 @@ export const es: Strings = {
   hud_close: 'Cerrar en esta partida',
   hud_compact: 'Compacto',
   hud_expand: 'Ampliar',
+  overlay_close: 'Cerrar',
   hud_details: 'Detalles',
   hud_sample_size: 'Muestra',
   hud_recent_comp: 'partidas competitivas recientes',

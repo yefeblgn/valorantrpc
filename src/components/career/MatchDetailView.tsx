@@ -26,6 +26,7 @@ import { useT } from '../../lib/i18n'
 import { formatDuration } from '../../lib/career'
 import {
   agentOf,
+  killMethod,
   mapOf,
   modeOf,
   seasonLabel,
@@ -41,14 +42,6 @@ import { Minimap } from './Minimap'
 
 const ALLY = 'var(--color-ally)'
 const ENEMY = '#ff4655'
-const ABILITY_SLOT: Record<string, number> = {
-  grenadeability: 0,
-  grenade: 0,
-  ability1: 1,
-  ability2: 2,
-  ultimate: 3
-}
-
 type View = 'scoreboard' | 'rounds' | 'map'
 
 const END_ICON: Record<RoundEnd, typeof Skull> = {
@@ -90,6 +83,10 @@ export function MatchDetailView({
   const mode = modeOf(catalog, summary)
   const me = detail ? detail.players.findIndex((p) => p.puuid === puuid) : -1
   const myTeam = detail?.players[me]?.team ?? summary.team
+
+  useEffect(() => {
+    window.api.warmShare()
+  }, [])
 
   const share = async (action: 'copy' | 'save'): Promise<void> => {
     setSharing(action)
@@ -674,18 +671,7 @@ function KillLine({
   const catalog = useHistoryStore((s) => s.catalog)
   const killer = detail.players[k.killer]
   const victim = detail.players[k.victim]
-  const slot = ABILITY_SLOT[k.weapon]
-  const weapon = slot === undefined ? weaponOf(catalog, k.weapon) : null
-  const ability =
-    slot !== undefined && killer
-      ? agentOf(catalog, killer.agent).abilities[slot] || t('kill_ability')
-      : k.kind === 'ability'
-        ? t('kill_ability')
-        : ''
-  const how =
-    weapon?.name ||
-    ability ||
-    (k.kind === 'bomb' ? t('kill_spike') : k.kind === 'fall' ? t('kill_fall') : '—')
+  const how = killMethod(catalog, k, killer?.agent ?? null, t)
   const color = (p: HistoryPlayer | undefined): string => (p?.team === myTeam ? ALLY : ENEMY)
 
   return (
@@ -698,15 +684,15 @@ function KillLine({
           {k.killer >= 0 ? name(k.killer) : '—'}
         </span>
         <span className="flex h-5 shrink-0 items-center">
-          {weapon?.kill ? (
-            <Tip label={how} side="top">
+          {how.icon ? (
+            <Tip label={how.name} side="top">
               <FadeImg
-                src={weapon.kill}
+                src={how.icon}
                 className="h-4 max-w-[64px] object-contain opacity-80 rtl:-scale-x-100 [[data-theme=light]_&]:invert"
               />
             </Tip>
           ) : (
-            <span className="text-[11px] text-dim">{how}</span>
+            <span className="text-[11px] text-dim">{how.name}</span>
           )}
         </span>
         <span className="truncate" style={{ color: color(victim) }}>

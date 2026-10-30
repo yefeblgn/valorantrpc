@@ -494,6 +494,7 @@ export const tr: Strings = {
   hud_close: 'Bu maç için kapat',
   hud_compact: 'Küçült',
   hud_expand: 'Genişlet',
+  overlay_close: 'Kapat',
   hud_details: 'Detaylar',
   hud_sample_size: 'Örnek',
   hud_recent_comp: 'son rekabetçi maç',

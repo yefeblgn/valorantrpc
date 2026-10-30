@@ -508,6 +508,7 @@ export const fr: Strings = {
   hud_close: 'Fermer pour cette partie',
   hud_compact: 'Réduire',
   hud_expand: 'Agrandir',
+  overlay_close: 'Fermer',
   hud_details: 'Détails',
   hud_sample_size: 'Échantillon',
   hud_recent_comp: 'parties compétitives récentes',

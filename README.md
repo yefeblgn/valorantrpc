@@ -361,7 +361,7 @@ npm run dev
 npm run dist
 ```
 
-`npm run dist` writes the installer and the portable build to `release/`.
+`npm run dist` writes the installer and the portable build to `release/`, and adds the portable exe to `latest.yml` so portable copies can update themselves. Upload `latest.yml` together with both exe files when publishing a release.
 
 Built with Electron, React, TypeScript, Vite and Tailwind CSS.
 

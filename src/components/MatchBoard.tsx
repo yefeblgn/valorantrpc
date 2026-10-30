@@ -10,17 +10,28 @@ const ENEMY = '#ff4655'
 const COLS =
   'grid grid-cols-[minmax(0,2.3fr)_minmax(0,1.35fr)_minmax(0,1.35fr)_minmax(0,1.15fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.6fr)] items-center gap-x-3'
 
-export function MatchBoard({ report }: { report: MatchReport }): JSX.Element {
+export function MatchBoard({
+  report,
+  compact = false
+}: {
+  report: MatchReport
+  compact?: boolean
+}): JSX.Element {
+  const cols = compact
+    ? report.teams.length > 1
+      ? 'grid-cols-2'
+      : 'grid-cols-1'
+    : 'grid-cols-1 min-[1500px]:grid-cols-2'
   return (
-    <div className="grid grid-cols-1 gap-4 min-[1500px]:grid-cols-2">
+    <div className={`grid gap-4 ${cols}`}>
       {report.teams.map((team) => (
-        <TeamTable key={team.id} team={team} />
+        <TeamTable key={team.id} team={team} compact={compact} />
       ))}
     </div>
   )
 }
 
-function TeamTable({ team }: { team: MatchTeam }): JSX.Element {
+function TeamTable({ team, compact }: { team: MatchTeam; compact: boolean }): JSX.Element {
   const t = useT()
   const color = team.id === 'all' ? 'var(--color-muted)' : team.ally ? ALLY : ENEMY
   const label = team.id === 'all' ? t('team_all') : team.ally ? t('team_ally') : t('team_enemy')
@@ -42,22 +53,78 @@ function TeamTable({ team }: { team: MatchTeam }): JSX.Element {
         )}
       </header>
 
-      <div className={`${COLS} border-b border-line px-4 py-2`}>
-        <span className="label">{t('col_player')}</span>
-        <span className="label">{t('col_rank')}</span>
-        <HeadTip label={t('col_peak')} desc={t('col_peak_desc')} />
-        <HeadTip label={t('col_season')} desc={t('col_season_desc')} />
-        <HeadTip label={t('col_kda')} desc={t('col_kda_desc').replace('{n}', n)} />
-        <HeadTip label={t('col_kd')} desc={t('col_kd_desc').replace('{n}', n)} />
-        <HeadTip label={t('col_hs')} desc={t('col_hs_desc').replace('{n}', n)} />
-      </div>
+      {compact ? (
+        <div className="divide-y divide-line">
+          {team.players.map((player) => (
+            <CompactRow key={player.puuid} player={player} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className={`${COLS} border-b border-line px-4 py-2`}>
+            <span className="label">{t('col_player')}</span>
+            <span className="label">{t('col_rank')}</span>
+            <HeadTip label={t('col_peak')} desc={t('col_peak_desc')} />
+            <HeadTip label={t('col_season')} desc={t('col_season_desc')} />
+            <HeadTip label={t('col_kda')} desc={t('col_kda_desc').replace('{n}', n)} />
+            <HeadTip label={t('col_kd')} desc={t('col_kd_desc').replace('{n}', n)} />
+            <HeadTip label={t('col_hs')} desc={t('col_hs_desc').replace('{n}', n)} />
+          </div>
 
-      <div className="divide-y divide-line">
-        {team.players.map((player) => (
-          <PlayerRow key={player.puuid} player={player} />
-        ))}
-      </div>
+          <div className="divide-y divide-line">
+            {team.players.map((player) => (
+              <PlayerRow key={player.puuid} player={player} />
+            ))}
+          </div>
+        </>
+      )}
     </section>
+  )
+}
+
+function CompactRow({ player }: { player: MatchPlayer }): JSX.Element {
+  const t = useT()
+  const stats = player.stats
+  return (
+    <div
+      className={`grid grid-cols-[28px_minmax(0,1fr)_auto_44px] items-center gap-3 px-4 py-1.5 ${
+        player.isSelf ? 'bg-accent/[0.07]' : ''
+      }`}
+    >
+      <span
+        className={`flex h-7 w-7 items-center justify-center overflow-hidden border bg-panel-2 ${
+          player.locked ? 'border-line-2' : 'border-dashed border-line-2'
+        }`}
+      >
+        {player.agentIcon ? (
+          <FadeImg
+            src={player.agentIcon}
+            className={`h-full w-full object-cover ${player.locked ? '' : 'opacity-50 grayscale'}`}
+          />
+        ) : (
+          <Users size={12} className="text-dim" />
+        )}
+      </span>
+      <span className="flex min-w-0 items-center gap-2">
+        {player.hidden ? (
+          <span className="truncate text-[13px] italic text-muted">{t('hidden_player')}</span>
+        ) : (
+          <span className="truncate text-[13px] font-semibold text-text">{player.name || '—'}</span>
+        )}
+        {player.isSelf && <Badge tone="accent">{t('you')}</Badge>}
+      </span>
+      <span className="flex min-w-0 items-center gap-1.5">
+        {stats?.rankIcon && (
+          <FadeImg src={stats.rankIcon} className="h-5 w-5 shrink-0 object-contain" />
+        )}
+        <span className="display truncate text-[12.5px] tracking-[0.03em]">
+          {stats ? (stats.rankTier ? stats.rankName : t('unranked')) : '—'}
+        </span>
+      </span>
+      <span className="text-end">
+        <Num value={stats?.kd ?? null} good={1.15} bad={0.9} />
+      </span>
+    </div>
   )
 }
 

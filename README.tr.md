@@ -361,7 +361,7 @@ npm run dev
 npm run dist
 ```
 
-`npm run dist` kurulum dosyasını ve taşınabilir sürümü `release/` klasörüne yazar.
+`npm run dist` kurulum dosyasını ve taşınabilir sürümü `release/` klasörüne yazar; taşınabilir exe kendini güncelleyebilsin diye onu da `latest.yml` içine ekler. Sürüm yayınlarken `latest.yml` dosyasını iki exe ile birlikte yükle.
 
 Electron, React, TypeScript, Vite ve Tailwind CSS ile yapıldı.
 

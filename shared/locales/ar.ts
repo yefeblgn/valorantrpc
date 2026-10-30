@@ -491,6 +491,7 @@ export const ar: Strings = {
   hud_close: 'إغلاق لهذه المباراة',
   hud_compact: 'مضغوط',
   hud_expand: 'توسيع',
+  overlay_close: 'إغلاق',
   hud_details: 'التفاصيل',
   hud_sample_size: 'العيّنة',
   hud_recent_comp: 'مباريات تنافسية أخيرة',

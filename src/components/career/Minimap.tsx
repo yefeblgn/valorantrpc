@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Bomb, Users } from 'lucide-react'
 import type { CatalogMap, HistoryKill, MatchDetail, MatchSummary, Point } from '@shared/history'
 import { useT } from '../../lib/i18n'
-import { agentOf, useHistoryStore } from '../../lib/history'
+import { agentOf, killMethod, useHistoryStore } from '../../lib/history'
 import { Segmented } from '../ui/Segmented'
 import { FadeImg } from '../ui/FadeImg'
 
@@ -13,13 +14,30 @@ const MAX_MAP_MATCHES = 20
 type Layer = 'mine' | 'deaths' | 'all' | 'spike'
 type Scope = 'match' | 'map'
 
+interface Actor {
+  name: string
+  icon: string | null
+  color: string
+  self: boolean
+}
+
 interface Marker {
   key: string
   at: Point
   from: Point | null
   color: string
   shape: 'dot' | 'cross' | 'diamond'
-  label: string
+  round: number
+  time: number
+  actor: Actor
+  target: Actor | null
+  how: { name: string; icon: string | null } | null
+  site: string
+}
+
+function clock(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 export function project(map: CatalogMap, p: Point): Point {
@@ -44,6 +62,7 @@ export function Minimap({
   const [layer, setLayer] = useState<Layer>('mine')
   const [scope, setScope] = useState<Scope>('match')
   const [others, setOthers] = useState<MatchDetail[] | null>(null)
+  const [hover, setHover] = useState<string | null>(null)
   const myPuuid = detail.players[me]?.puuid ?? ''
 
   useEffect(() => {
@@ -69,9 +88,15 @@ export function Minimap({
     for (const d of sources) {
       const meIndex = d.players.findIndex((p) => p.puuid === myPuuid)
       const myTeam = d.players[meIndex]?.team ?? ''
-      const name = (i: number): string => {
+      const actor = (i: number): Actor => {
         const p = d.players[i]
-        return p ? p.name || agentOf(catalog, p.agent).name : '?'
+        const agent = p ? agentOf(catalog, p.agent) : null
+        return {
+          name: p ? p.name || agent?.name || '?' : '?',
+          icon: agent?.icon ?? null,
+          color: p?.team === myTeam ? ALLY : ENEMY,
+          self: i === meIndex
+        }
       }
       for (const r of d.rounds) {
         if (scope === 'match' && round !== null && r.n !== round) continue
@@ -83,7 +108,12 @@ export function Minimap({
               from: null,
               color: SPIKE,
               shape: 'diamond',
-              label: `${t('round_n').replace('{n}', String(r.n + 1))} · ${t('spike_planted')} ${r.plant.site} · ${name(r.plant.by)}`
+              round: r.n,
+              time: r.plant.t,
+              actor: actor(r.plant.by),
+              target: null,
+              how: null,
+              site: r.plant.site
             })
           }
           continue
@@ -101,7 +131,12 @@ export function Minimap({
             from: k.killerAt && scope === 'match' ? project(map, k.killerAt) : null,
             color: killerTeam === myTeam ? ALLY : ENEMY,
             shape: died ? 'cross' : 'dot',
-            label: `${t('round_n').replace('{n}', String(r.n + 1))} · ${name(k.killer)} → ${name(k.victim)}`
+            round: r.n,
+            time: k.t,
+            actor: actor(k.killer),
+            target: actor(k.victim),
+            how: killMethod(catalog, k, d.players[k.killer]?.agent ?? null, t),
+            site: ''
           })
         })
       }
@@ -110,6 +145,7 @@ export function Minimap({
   }, [scope, others, detail, round, layer, map, myPuuid, catalog, t])
 
   const loading = scope === 'map' && !others
+  const active = markers.find((m) => m.key === hover) ?? null
 
   return (
     <div className="flex flex-col gap-3">
@@ -145,15 +181,23 @@ export function Minimap({
       {!map.minimap ? (
         <div className="panel px-5 py-6 text-[13px] text-dim">{t('map_unavailable')}</div>
       ) : (
-        <div className="panel relative mx-auto aspect-square w-full max-w-[560px] overflow-hidden bg-[#0b0e13]">
+        <div className="panel relative mx-auto aspect-square w-full max-w-[560px] bg-[#0b0e13]">
           <FadeImg
             src={map.minimap}
             className="absolute inset-0 h-full w-full object-contain opacity-80"
           />
-          <svg viewBox="0 0 1 1" className="absolute inset-0 h-full w-full">
+          <svg
+            viewBox="0 0 1 1"
+            className="absolute inset-0 h-full w-full"
+            onPointerLeave={() => setHover(null)}
+          >
             {markers.map((m) => (
-              <g key={m.key}>
-                <title>{m.label}</title>
+              <g
+                key={m.key}
+                className="cursor-pointer"
+                opacity={active && active.key !== m.key ? 0.45 : 1}
+                onPointerEnter={() => setHover(m.key)}
+              >
                 {m.from && (
                   <line
                     x1={m.from.x}
@@ -161,8 +205,19 @@ export function Minimap({
                     x2={m.at.x}
                     y2={m.at.y}
                     stroke={m.color}
-                    strokeOpacity={0.45}
-                    strokeWidth={0.0025}
+                    strokeOpacity={active?.key === m.key ? 0.9 : 0.45}
+                    strokeWidth={active?.key === m.key ? 0.004 : 0.0025}
+                  />
+                )}
+                <circle cx={m.at.x} cy={m.at.y} r={0.022} fill="transparent" />
+                {active?.key === m.key && (
+                  <circle
+                    cx={m.at.x}
+                    cy={m.at.y}
+                    r={0.017}
+                    fill="none"
+                    stroke={m.color}
+                    strokeWidth={0.003}
                   />
                 )}
                 {m.shape === 'dot' && (
@@ -198,6 +253,7 @@ export function Minimap({
               </g>
             ))}
           </svg>
+          {active && <MarkerCard key={active.key} marker={active} />}
         </div>
       )}
       <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] text-muted">
@@ -206,6 +262,93 @@ export function Minimap({
         <Legend color={SPIKE} label={t('map_spike')} />
       </div>
     </div>
+  )
+}
+
+function MarkerCard({ marker }: { marker: Marker }): JSX.Element {
+  const t = useT()
+  const { at } = marker
+  const below = at.y < 0.24
+  const x = at.x < 0.25 ? '-18px' : at.x > 0.75 ? 'calc(-100% + 18px)' : '-50%'
+  const y = below ? '20px' : 'calc(-100% - 20px)'
+
+  return (
+    <div
+      className="pointer-events-none absolute z-10"
+      style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%`, transform: `translate(${x}, ${y})` }}
+    >
+      <div
+        className="animate-[page-in_0.16s_cubic-bezier(0.22,1,0.36,1)] border border-line-2 bg-panel-2 shadow-[0_14px_32px_-12px_rgba(0,0,0,0.85)]"
+        style={{ borderInlineStart: `2px solid ${marker.color}` }}
+      >
+        <div className="flex items-center gap-2 border-b border-line px-3 py-1.5">
+          <span className="display text-[11.5px] tracking-[0.14em] text-muted">
+            {t('round_n').replace('{n}', String(marker.round + 1))}
+          </span>
+          <span className="text-[11.5px] tabular-nums text-dim">{clock(marker.time)}</span>
+        </div>
+        <div className="flex items-center gap-3 whitespace-nowrap px-3 py-2.5">
+          <ActorChip actor={marker.actor} />
+          {marker.target ? (
+            <>
+              <span className="flex min-w-[44px] flex-col items-center gap-1">
+                {marker.how?.icon ? (
+                  <FadeImg
+                    src={marker.how.icon}
+                    className="h-[18px] max-w-[84px] object-contain opacity-90 rtl:-scale-x-100 [[data-theme=light]_&]:invert"
+                  />
+                ) : (
+                  <span className="display text-[11px] tracking-[0.08em] text-muted">
+                    {marker.how?.name ?? '—'}
+                  </span>
+                )}
+                {marker.how?.icon && (
+                  <span className="max-w-[96px] truncate text-[10.5px] text-dim">
+                    {marker.how.name}
+                  </span>
+                )}
+              </span>
+              <ActorChip actor={marker.target} />
+            </>
+          ) : (
+            <span className="flex items-center gap-2">
+              <Bomb size={15} className="text-warn" />
+              <span className="display text-[13px] tracking-[0.1em] text-text">
+                {t('spike_planted')}
+              </span>
+              {marker.site && (
+                <span className="display border border-warn/50 bg-warn/10 px-1.5 text-[12px] tracking-[0.1em] text-warn">
+                  {marker.site}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ActorChip({ actor }: { actor: Actor }): JSX.Element {
+  return (
+    <span className="flex items-center gap-2">
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden bg-panel"
+        style={{ boxShadow: `inset 0 -2px 0 ${actor.color}` }}
+      >
+        {actor.icon ? (
+          <FadeImg src={actor.icon} className="h-full w-full object-cover" />
+        ) : (
+          <Users size={14} className="text-dim" />
+        )}
+      </span>
+      <span
+        className={`max-w-[130px] truncate text-[13px] ${actor.self ? 'font-bold' : 'font-semibold'}`}
+        style={{ color: actor.color }}
+      >
+        {actor.name}
+      </span>
+    </span>
   )
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Crown } from 'lucide-react'
 import type { Catalog, HistoryPlayer, MatchDetail, MatchSummary } from '@shared/history'
+import type { ShareJob } from '@shared/types'
 import { acs, pct } from '@shared/history'
 import { AppLogo, STUDIO } from '../components/brand'
 import { RESULT_COLOR, formatDate, signed } from '../components/career/common'
@@ -15,41 +16,64 @@ const ALLY = '#3ed6b4'
 const ENEMY = '#ff4655'
 
 interface Loaded {
+  token: number
+  puuid: string
   detail: MatchDetail
   catalog: Catalog
   summary: MatchSummary | null
 }
 
 function waitForImages(): Promise<void> {
-  const pending = [...document.images].filter((img) => !img.complete)
+  const images = [...document.images]
   return Promise.all(
-    pending.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          img.addEventListener('load', () => resolve(), { once: true })
-          img.addEventListener('error', () => resolve(), { once: true })
-        })
+    images.map((img) =>
+      (img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.addEventListener('load', () => resolve(), { once: true })
+            img.addEventListener('error', () => resolve(), { once: true })
+          })
+      ).then(() => (img.naturalWidth ? img.decode().catch(() => undefined) : undefined))
     )
   ).then(() => undefined)
 }
 
-export function ShareApp({ puuid, id }: { puuid: string; id: string }): JSX.Element {
+export function ShareApp(): JSX.Element {
   const t = useT()
   const settings = useStore((s) => s.settings)
+  const [job, setJob] = useState<ShareJob | null>(null)
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   useAppearance({ themed: false })
 
   useEffect(() => {
     void initStore()
+    const off = window.api.onShareRequest(setJob)
+    window.api.shareReady(null)
+    return off
+  }, [])
+
+  useEffect(() => {
+    if (!job) return
+    let cancelled = false
+    setLoaded(null)
     void Promise.all([
-      window.api.getMatchDetail(id, puuid),
+      window.api.getMatchDetail(job.id, job.puuid),
       window.api.getCatalog(),
-      window.api.getHistory(puuid)
-    ]).then(([detail, catalog, data]) => {
-      if (!detail) return window.api.shareReady()
-      setLoaded({ detail, catalog, summary: data.matches.find((m) => m.id === id) ?? null })
-    })
-  }, [id, puuid])
+      window.api.getHistory(job.puuid)
+    ])
+      .then(([detail, catalog, data]) => {
+        if (cancelled) return
+        if (!detail) return window.api.shareReady(job.token, false)
+        const summary = data.matches.find((m) => m.id === job.id) ?? null
+        setLoaded({ token: job.token, puuid: job.puuid, detail, catalog, summary })
+      })
+      .catch(() => {
+        if (!cancelled) window.api.shareReady(job.token, false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [job])
 
   useEffect(() => {
     if (!loaded || !settings) return
@@ -57,7 +81,7 @@ export function ShareApp({ puuid, id }: { puuid: string; id: string }): JSX.Elem
     void waitForImages().then(() =>
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
-          if (!cancelled) window.api.shareReady()
+          if (!cancelled) window.api.shareReady(loaded.token)
         })
       )
     )
@@ -68,7 +92,7 @@ export function ShareApp({ puuid, id }: { puuid: string; id: string }): JSX.Elem
 
   if (!loaded || !settings) return <div className="h-[675px] w-[1200px] bg-bg" />
 
-  const { detail, catalog, summary } = loaded
+  const { detail, catalog, summary, puuid } = loaded
   const streamer = settings.streamerMode
   const locale = apiLanguage(settings.language)
   const me = detail.players.findIndex((p) => p.puuid === puuid)

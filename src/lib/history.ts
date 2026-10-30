@@ -6,6 +6,7 @@ import type {
   CatalogMap,
   CatalogWeapon,
   HistoryData,
+  HistoryKill,
   HistoryStatus,
   MatchSummary
 } from '@shared/history'
@@ -109,6 +110,35 @@ export function mapOf(catalog: Catalog | null, path: string): CatalogMap {
 
 export function weaponOf(catalog: Catalog | null, uuid: string): CatalogWeapon | null {
   return catalog?.weapons[uuid.toLowerCase()] ?? null
+}
+
+const ABILITY_SLOT: Record<string, number> = {
+  grenadeability: 0,
+  grenade: 0,
+  ability1: 1,
+  ability2: 2,
+  ultimate: 3
+}
+
+export function killMethod(
+  catalog: Catalog | null,
+  kill: HistoryKill,
+  killerAgent: string | null,
+  t: (key: string) => string
+): { name: string; icon: string | null } {
+  const slot = ABILITY_SLOT[kill.weapon]
+  const weapon = slot === undefined ? weaponOf(catalog, kill.weapon) : null
+  const ability =
+    slot !== undefined && killerAgent
+      ? agentOf(catalog, killerAgent).abilities[slot] || t('kill_ability')
+      : kill.kind === 'ability'
+        ? t('kill_ability')
+        : ''
+  const name =
+    weapon?.name ||
+    ability ||
+    (kill.kind === 'bomb' ? t('kill_spike') : kill.kind === 'fall' ? t('kill_fall') : '—')
+  return { name, icon: weapon?.kill ?? null }
 }
 
 export function tierOf(

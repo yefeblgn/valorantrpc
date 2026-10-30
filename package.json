@@ -13,7 +13,7 @@
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "dist": "electron-vite build && electron-builder --win",
+    "dist": "electron-vite build && electron-builder --win && node scripts/portable-manifest.mjs",
     "dist:dir": "electron-vite build && electron-builder --win --dir"
   },
   "dependencies": {

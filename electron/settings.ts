@@ -146,6 +146,7 @@ function sanitize(s: Settings): Settings {
     hudEnabled: bool(s.hudEnabled, d.hudEnabled),
     hudCompact: bool(s.hudCompact, d.hudCompact),
     hudLayout: hudLayout(s.hudLayout),
+    trackerCompact: bool(s.trackerCompact, d.trackerCompact),
     historyEnabled: bool(s.historyEnabled, d.historyEnabled),
     postMatchNotify: bool(s.postMatchNotify, d.postMatchNotify),
     tiltEnabled: bool(s.tiltEnabled, d.tiltEnabled),

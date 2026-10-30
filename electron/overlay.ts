@@ -1,13 +1,25 @@
 import { join } from 'path'
 import { BrowserWindow, globalShortcut, screen, type Rectangle } from 'electron'
-import type { OverlayView } from '@shared/types'
+import type { OverlayRegion, OverlayView } from '@shared/types'
 import { IPC } from '@shared/ipc'
 import type { GameFocus } from './gameWindow'
 
-const FADE_MS = 160
+const FADE_MS = 240
+const HIT_POLL_MS = 40
+const HIT_MARGIN = 6
+
+export interface OverlayNative {
+  attach: (handle: string) => void
+  returnFocus: () => void
+}
 
 function sameRect(a: Rectangle | null, b: Rectangle | null): boolean {
   return a?.x === b?.x && a?.y === b?.y && a?.width === b?.width && a?.height === b?.height
+}
+
+function handleOf(win: BrowserWindow): string {
+  const buf = win.getNativeWindowHandle()
+  return (buf.length >= 8 ? buf.readBigUInt64LE(0) : BigInt(buf.readUInt32LE(0))).toString()
 }
 
 export class Overlay {
@@ -25,10 +37,17 @@ export class Overlay {
   private game: GameFocus = { focused: false, physical: null }
   private view: OverlayView = { tracker: false, hud: false }
   private bounds: Rectangle | null = null
-  private interactive = false
+  private passThrough = true
+  private focusMode = false
+  private region: OverlayRegion | null = null
+  private hold = false
+  private hitTimer: ReturnType<typeof setInterval> | null = null
   private readonly onDisplays = (): void => this.fit()
 
-  constructor(private readonly load: (win: BrowserWindow, view: string) => void) {
+  constructor(
+    private readonly load: (win: BrowserWindow, view: string) => void,
+    private readonly native: OverlayNative
+  ) {
     screen.on('display-metrics-changed', this.onDisplays)
     screen.on('display-added', this.onDisplays)
     screen.on('display-removed', this.onDisplays)
@@ -44,6 +63,12 @@ export class Overlay {
     this.render()
   }
 
+  close(): void {
+    if (!this.tracker) return
+    this.tracker = false
+    this.render()
+  }
+
   setGame(game: GameFocus): void {
     this.game = game
     if (!game.focused) this.tracker = false
@@ -52,12 +77,10 @@ export class Overlay {
     this.render()
   }
 
-  setInteractive(interactive: boolean): void {
-    const next = interactive && this.view.hud
-    if (next === this.interactive) return
-    this.interactive = next
-    const win = this.win
-    if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(!next, { forward: true })
+  setRegion(region: OverlayRegion | null, hold: boolean): void {
+    this.region = region
+    this.hold = hold && !!region
+    this.syncInput()
   }
 
   setHud(wanted: boolean): void {
@@ -90,6 +113,7 @@ export class Overlay {
     screen.off('display-added', this.onDisplays)
     screen.off('display-removed', this.onDisplays)
     if (this.hideTimer) clearTimeout(this.hideTimer)
+    this.stopHitTest()
     if (this.win && !this.win.isDestroyed()) this.win.destroy()
     this.win = null
     this.ready = false
@@ -105,9 +129,9 @@ export class Overlay {
     }
     const changed = next.tracker !== this.view.tracker || next.hud !== this.view.hud
     this.view = next
-    if (!next.hud) this.setInteractive(false)
     if (next.tracker || next.hud) this.reveal()
     else this.conceal()
+    this.syncInput()
     if (changed && this.win && !this.win.isDestroyed()) {
       this.win.webContents.send(IPC.overlayView, next)
     }
@@ -121,22 +145,85 @@ export class Overlay {
     }
     if (!this.ready) return
     this.fit()
-    if (this.shown) return
-    this.shown = true
-    win.showInactive()
+    if (!this.shown) {
+      this.shown = true
+      if (this.view.tracker) {
+        this.focusMode = true
+        win.setFocusable(true)
+        win.setSkipTaskbar(true)
+        this.setPassThrough(false)
+        win.show()
+      } else {
+        win.showInactive()
+      }
+    }
     win.setAlwaysOnTop(true, 'screen-saver')
     win.moveTop()
+    if (this.focusMode && this.view.tracker && !win.isFocused()) win.focus()
   }
 
   private conceal(): void {
-    if (!this.shown || this.hideTimer) return
+    const win = this.win
+    if (!this.shown || !win || win.isDestroyed()) return
+    if (this.focusMode && win.isFocused()) this.native.returnFocus()
+    if (this.hideTimer) return
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null
-      const win = this.win
-      if (this.view.tracker || this.view.hud || !win || win.isDestroyed()) return
+      if (this.view.tracker || this.view.hud || win.isDestroyed()) return
       win.hide()
       this.shown = false
+      if (this.focusMode) {
+        this.focusMode = false
+        win.setFocusable(false)
+        win.setSkipTaskbar(true)
+      }
     }, FADE_MS)
+  }
+
+  private syncInput(): void {
+    const win = this.win
+    if (!win || win.isDestroyed()) return
+    const hitTest = this.shown && this.view.hud && !this.view.tracker && !!this.region
+    if (hitTest) {
+      if (!this.hitTimer) this.hitTimer = setInterval(() => this.hitTest(), HIT_POLL_MS)
+      this.hitTest()
+      return
+    }
+    this.stopHitTest()
+    this.setPassThrough(!(this.shown && this.view.tracker))
+  }
+
+  private hitTest(): void {
+    const win = this.win
+    const r = this.region
+    if (!win || win.isDestroyed() || !r) return
+    if (this.hold) {
+      this.setPassThrough(false)
+      return
+    }
+    const b = win.getBounds()
+    const c = screen.getCursorScreenPoint()
+    const x = c.x - b.x
+    const y = c.y - b.y
+    const inside =
+      x >= r.x - HIT_MARGIN &&
+      x <= r.x + r.width + HIT_MARGIN &&
+      y >= r.y - HIT_MARGIN &&
+      y <= r.y + r.height + HIT_MARGIN
+    this.setPassThrough(!inside)
+  }
+
+  private stopHitTest(): void {
+    if (!this.hitTimer) return
+    clearInterval(this.hitTimer)
+    this.hitTimer = null
+  }
+
+  private setPassThrough(pass: boolean): void {
+    const win = this.win
+    if (pass === this.passThrough || !win || win.isDestroyed()) return
+    this.passThrough = pass
+    win.setIgnoreMouseEvents(pass)
   }
 
   private targetBounds(): Rectangle {
@@ -195,6 +282,16 @@ export class Overlay {
     this.registered = false
   }
 
+  private reset(): void {
+    this.ready = false
+    this.shown = false
+    this.bounds = null
+    this.passThrough = true
+    this.focusMode = false
+    this.hold = false
+    this.stopHitTest()
+  }
+
   private ensure(): BrowserWindow {
     if (this.win && !this.win.isDestroyed()) return this.win
     const win = new BrowserWindow({
@@ -220,28 +317,29 @@ export class Overlay {
         backgroundThrottling: false
       }
     })
-    win.setIgnoreMouseEvents(true, { forward: true })
+    win.setIgnoreMouseEvents(true)
     win.setAlwaysOnTop(true, 'screen-saver')
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    this.native.attach(handleOf(win))
     win.once('ready-to-show', () => {
       this.ready = true
       this.bounds = null
       this.render()
     })
+    win.on('blur', () => {
+      if (!this.focusMode || !this.tracker) return
+      this.tracker = false
+      this.render()
+    })
     win.on('closed', () => {
       if (this.win !== win) return
       this.win = null
-      this.ready = false
-      this.shown = false
-      this.bounds = null
-      this.interactive = false
+      this.native.attach('0')
+      this.reset()
     })
     this.load(win, 'overlay')
     this.win = win
-    this.ready = false
-    this.shown = false
-    this.bounds = null
-    this.interactive = false
+    this.reset()
     return win
   }
 }

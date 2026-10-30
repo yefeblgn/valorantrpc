@@ -484,6 +484,7 @@ export const zh: Strings = {
   hud_close: '本场关闭',
   hud_compact: '精简',
   hud_expand: '展开',
+  overlay_close: '关闭',
   hud_details: '详情',
   hud_sample_size: '样本',
   hud_recent_comp: '最近竞技对局',

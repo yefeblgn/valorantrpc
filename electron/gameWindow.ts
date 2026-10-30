@@ -17,8 +17,10 @@ const PROBE_SCRIPT = String.raw`param([int]$Parent)
 $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 public static class VrpcProbe {
   [StructLayout(LayoutKind.Sequential)]
@@ -33,11 +35,45 @@ public static class VrpcProbe {
   [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
   [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr hWnd, ref POINT point);
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hWnd);
+  [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hWnd, int attr, ref int value, int size);
 
   static int[] pids = new int[0];
   static DateTime scanned = DateTime.MinValue;
+  static IntPtr game = IntPtr.Zero;
+  static IntPtr overlay = IntPtr.Zero;
+  static readonly ConcurrentQueue<string> commands = new ConcurrentQueue<string>();
+  static readonly AutoResetEvent signal = new AutoResetEvent(false);
 
-  public static void Init() { SetProcessDPIAware(); }
+  public static void Init() {
+    SetProcessDPIAware();
+    Thread reader = new Thread(() => {
+      string line;
+      while ((line = Console.In.ReadLine()) != null) { commands.Enqueue(line.Trim()); signal.Set(); }
+    });
+    reader.IsBackground = true;
+    reader.Start();
+  }
+
+  public static void Wait(int ms) {
+    signal.WaitOne(ms);
+    string cmd;
+    while (commands.TryDequeue(out cmd)) Run(cmd);
+  }
+
+  static void Run(string cmd) {
+    if (cmd.StartsWith("overlay ")) {
+      long handle;
+      if (!long.TryParse(cmd.Substring(8), out handle)) return;
+      overlay = new IntPtr(handle);
+      if (overlay == IntPtr.Zero) return;
+      int disabled = 1;
+      DwmSetWindowAttribute(overlay, 3, ref disabled, 4);
+    } else if (cmd == "return") {
+      if (game != IntPtr.Zero && IsWindow(game)) SetForegroundWindow(game);
+    }
+  }
 
   public static string Probe(string name) {
     if ((DateTime.UtcNow - scanned).TotalMilliseconds >= 3000) {
@@ -49,10 +85,13 @@ public static class VrpcProbe {
     }
     if (pids.Length == 0) return "none";
     IntPtr h = GetForegroundWindow();
-    if (h == IntPtr.Zero || IsIconic(h)) return "away";
+    if (h == IntPtr.Zero) return "away";
+    if (h == overlay) return "self";
+    if (IsIconic(h)) return "away";
     uint pid;
     GetWindowThreadProcessId(h, out pid);
     if (Array.IndexOf(pids, (int)pid) < 0) return "away";
+    game = h;
     RECT r;
     POINT p = new POINT();
     if (!GetClientRect(h, out r) || !ClientToScreen(h, ref p)) return "focus";
@@ -76,12 +115,13 @@ while ($true) {
   }
   $tick++
   if ($tick % 8 -eq 0 -and -not [VrpcProbe]::Alive($Parent)) { break }
-  Start-Sleep -Milliseconds 250
+  [VrpcProbe]::Wait(250)
 }
 `
 
-function parse(line: string): GameFocus {
+function parse(line: string, prev: GameFocus): GameFocus {
   const [kind, ...rest] = line.trim().split(/\s+/)
+  if (kind === 'self') return prev.focused ? prev : { focused: false, physical: null }
   if (kind !== 'focus') return { focused: false, physical: null }
   const [x, y, width, height] = rest.map(Number)
   const valid = [x, y, width, height].every(Number.isFinite) && width > 0 && height > 0
@@ -94,6 +134,7 @@ export class GameWatcher extends EventEmitter {
   private wanted = false
   private restartTimer: ReturnType<typeof setTimeout> | null = null
   private state: GameFocus = { focused: false, physical: null }
+  private overlayHandle = ''
 
   get available(): boolean {
     return process.platform === 'win32' && this.failures < MAX_FAILURES
@@ -113,6 +154,20 @@ export class GameWatcher extends EventEmitter {
     this.child = null
     if (child && child.exitCode === null) child.kill()
     this.update({ focused: false, physical: null })
+  }
+
+  attachOverlay(handle: string): void {
+    this.overlayHandle = handle
+    this.send(`overlay ${handle}`)
+  }
+
+  returnFocus(): void {
+    this.send('return')
+  }
+
+  private send(line: string): void {
+    const stdin = this.child?.stdin
+    if (stdin && stdin.writable) stdin.write(`${line}\n`)
   }
 
   private spawn(): void {
@@ -139,9 +194,11 @@ export class GameWatcher extends EventEmitter {
         script,
         String(process.pid)
       ],
-      { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
+      { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] }
     )
     this.child = child
+    child.stdin?.on('error', (e) => console.debug('[game] probe stdin:', e.message))
+    if (this.overlayHandle) this.send(`overlay ${this.overlayHandle}`)
     let buffer = ''
     let healthy = false
 
@@ -157,7 +214,7 @@ export class GameWatcher extends EventEmitter {
             healthy = true
             this.failures = 0
           }
-          this.update(parse(line))
+          this.update(parse(line, this.state))
         }
         nl = buffer.indexOf('\n')
       }
