@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Crosshair } from 'lucide-react'
-import type { MatchReport, OverlayView } from '@shared/types'
+import { DEFAULT_HUD_LAYOUT, type MatchReport, type OverlayView } from '@shared/types'
 import { AppLogo, STUDIO, StudioMark, StudioTag } from '../components/brand'
 import { MatchBoard } from '../components/MatchBoard'
 import { MatchHeader } from '../components/MatchHeader'
@@ -16,25 +16,54 @@ const BASE_HEIGHT = 1080
 const MIN_SCALE = 0.5
 const MAX_SCALE = 3
 
-function useStageScale(): number {
+function useStage(): { scale: number; width: number; height: number } {
   const uiScale = useStore((s) => s.settings?.uiScale ?? 100)
-  const [height, setHeight] = useState(window.innerHeight)
+  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight })
 
   useEffect(() => {
-    const onResize = (): void => setHeight(window.innerHeight)
+    const onResize = (): void => setSize({ w: window.innerWidth, h: window.innerHeight })
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  const scale = (height * uiScale) / 100 / BASE_HEIGHT
-  return Math.min(Math.max(scale, MIN_SCALE), MAX_SCALE)
+  const raw = (size.h * uiScale) / 100 / BASE_HEIGHT
+  const scale = Math.min(Math.max(raw, MIN_SCALE), MAX_SCALE)
+  return { scale, width: size.w / scale, height: size.h / scale }
+}
+
+function useInteractiveHud(active: boolean): void {
+  useEffect(() => {
+    if (!active) return
+    let over = false
+    const set = (next: boolean): void => {
+      if (next === over) return
+      over = next
+      window.api.setOverlayInteractive(next)
+    }
+    const onMove = (e: MouseEvent): void => {
+      const target = e.target instanceof Element ? e.target : null
+      set(!!target?.closest('[data-hud]'))
+    }
+    const onLeave = (): void => set(false)
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseleave', onLeave)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseleave', onLeave)
+      set(false)
+    }
+  }, [active])
 }
 
 export function OverlayApp(): JSX.Element {
   const [view, setView] = useState<OverlayView>({ tracker: false, hud: false })
   const hotkey = useStore((s) => s.settings?.overlayHotkey ?? 'Ctrl+T')
+  const layout = useStore((s) => s.settings?.hudLayout ?? DEFAULT_HUD_LAYOUT)
+  const compact = useStore((s) => s.settings?.hudCompact ?? false)
+  const patch = useStore((s) => s.patch)
   const report = useMatch()
-  const scale = useStageScale()
+  const stage = useStage()
+  const scale = stage.scale
   useAppearance({ themed: false })
 
   useEffect(() => {
@@ -45,6 +74,7 @@ export function OverlayApp(): JSX.Element {
   }, [])
 
   const hud = view.hud && report?.phase === 'pregame'
+  useInteractiveHud(hud)
 
   return (
     <TipProvider>
@@ -59,7 +89,20 @@ export function OverlayApp(): JSX.Element {
         <Layer visible={view.tracker}>
           <Tracker report={report} hotkey={hotkey} />
         </Layer>
-        <Layer visible={hud}>{report && <AgentSelectHud report={report} hotkey={hotkey} />}</Layer>
+        <Layer visible={hud}>
+          {report && (
+            <AgentSelectHud
+              report={report}
+              hotkey={hotkey}
+              layout={layout}
+              compact={compact}
+              stage={{ width: stage.width, height: stage.height, pointerScale: scale }}
+              onLayout={(x, y) => void patch({ hudLayout: { ...layout, x, y } })}
+              onCompact={(v) => void patch({ hudCompact: v })}
+              onClose={() => window.api.dismissHud()}
+            />
+          )}
+        </Layer>
       </div>
     </TipProvider>
   )
@@ -70,7 +113,7 @@ function Layer({ visible, children }: { visible: boolean; children: ReactNode })
     <div
       aria-hidden={!visible}
       className={`absolute inset-0 transition-opacity duration-150 ease-out will-change-[opacity] ${
-        visible ? 'opacity-100' : 'opacity-0'
+        visible ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}
     >
       {children}

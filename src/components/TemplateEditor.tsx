@@ -280,7 +280,8 @@ function sampleValues(
     level: hidden ? '' : '214',
     player,
     party: '2/5',
-    status: t('p_in_game')
+    status: t('p_in_game'),
+    session: `4${t('wins_short')} 2${t('losses_short')}${hidden ? '' : ' · +38 RR'}`
   }
   return {
     menus: { ...base, map: '', agent: '', score: '', status: t('queuing') },

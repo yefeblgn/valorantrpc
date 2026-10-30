@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as RTabs from '@radix-ui/react-tabs'
 import { motion } from 'framer-motion'
-import { Check, Lock } from 'lucide-react'
+import { Check, Download, FolderOpen, Lock, Upload } from 'lucide-react'
 import {
   DEFAULT_SETTINGS,
   LANGUAGES,
@@ -16,7 +16,9 @@ import {
   type ThemeMode,
   type UiScale,
   type WindowInfo,
+  type TransferResult,
   type WindowSizeKey,
+  TILT_RANGE,
   UI_SCALES,
   WINDOW_SIZES
 } from '@shared/types'
@@ -34,6 +36,7 @@ import { DiscordPreview } from '../components/DiscordPreview'
 import { TemplateEditor } from '../components/TemplateEditor'
 import { UpdatePanel } from '../components/UpdatePanel'
 import { HotkeyRecorder } from '../components/ui/HotkeyRecorder'
+import { HudEditor } from '../components/HudEditor'
 import { RiskNote } from './Match'
 import { darken } from '../lib/format'
 
@@ -62,7 +65,15 @@ function presenceDefaults(): Partial<AppSettings> {
   return Object.fromEntries(PRESENCE_KEYS.map((k) => [k, DEFAULT_SETTINGS[k]]))
 }
 
-const TABS = ['general', 'presence', 'overlay', 'autolock', 'appearance', 'updates'] as const
+const TABS = [
+  'general',
+  'presence',
+  'overlay',
+  'history',
+  'autolock',
+  'appearance',
+  'updates'
+] as const
 type Tab = (typeof TABS)[number]
 
 export function Settings(): JSX.Element {
@@ -102,6 +113,7 @@ export function Settings(): JSX.Element {
           {tab === 'autolock' && <AutolockTab />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'overlay' && <OverlayTab />}
+          {tab === 'history' && <HistoryTab />}
           {tab === 'updates' && <UpdatePanel />}
         </motion.div>
       </RTabs.Root>
@@ -488,9 +500,109 @@ function OverlayTab(): JSX.Element {
           <Switch checked={settings.hudEnabled} onChange={(v) => patch({ hudEnabled: v })} />
         </Field>
       </Group>
+      {settings.overlayEnabled && settings.hudEnabled && (
+        <div className="panel">
+          <HudEditor />
+        </div>
+      )}
       <RiskNote />
       <p className="text-[12.5px] leading-snug text-dim">
         {t('overlay_focus_note')} {t('overlay_display_note')} {t('overlay_privacy')}
+      </p>
+    </div>
+  )
+}
+
+function HistoryTab(): JSX.Element {
+  const t = useT()
+  const { settings, patch } = useSettings()
+  const [tilt, setTilt] = useState(settings.tiltThreshold)
+  const [result, setResult] = useState<{ kind: 'export' | 'import'; r: TransferResult } | null>(
+    null
+  )
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => setTilt(settings.tiltThreshold), [settings.tiltThreshold])
+
+  const run = async (kind: 'export' | 'import'): Promise<void> => {
+    setBusy(true)
+    const r =
+      kind === 'export' ? await window.api.exportHistory() : await window.api.importHistory()
+    setBusy(false)
+    if (r.ok || r.error) setResult({ kind, r })
+  }
+
+  const message = result
+    ? result.r.ok
+      ? t(result.kind === 'export' ? 'backup_exported' : 'backup_imported').replace(
+          '{n}',
+          String(result.r.count)
+        )
+      : t('backup_failed')
+    : null
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Group title={t('group_history')}>
+        <Field label={t('history_enabled')} desc={t('history_enabled_desc')}>
+          <Switch
+            checked={settings.historyEnabled}
+            onChange={(v) => patch({ historyEnabled: v })}
+          />
+        </Field>
+        <Field label={t('post_match_notify')} desc={t('post_match_notify_desc')}>
+          <Switch
+            checked={settings.postMatchNotify}
+            onChange={(v) => patch({ postMatchNotify: v })}
+          />
+        </Field>
+      </Group>
+
+      <Group title={t('group_wellbeing')}>
+        <Field label={t('tilt_enabled')} desc={t('tilt_enabled_desc')}>
+          <Switch checked={settings.tiltEnabled} onChange={(v) => patch({ tiltEnabled: v })} />
+        </Field>
+        {settings.tiltEnabled && (
+          <Field label={t('tilt_threshold')} desc={t('tilt_threshold_desc')}>
+            <div className="flex items-center gap-3">
+              <Slider
+                value={tilt}
+                min={TILT_RANGE[0]}
+                max={TILT_RANGE[1]}
+                onChange={setTilt}
+                onCommit={(v) => patch({ tiltThreshold: v })}
+              />
+              <span className="display w-8 text-end text-[15px] text-muted">{tilt}</span>
+            </div>
+          </Field>
+        )}
+      </Group>
+
+      <Group title={t('group_backup')}>
+        <Field label={t('backup_export')} desc={t('backup_export_desc')}>
+          <button onClick={() => void run('export')} disabled={busy} className="btn btn-ghost">
+            <Download size={13} />
+            {t('backup_export_btn')}
+          </button>
+        </Field>
+        <Field label={t('backup_import')} desc={t('backup_import_desc')}>
+          <button onClick={() => void run('import')} disabled={busy} className="btn btn-ghost">
+            <Upload size={13} />
+            {t('backup_import_btn')}
+          </button>
+        </Field>
+        {message && (
+          <div
+            className={`px-4 py-2.5 text-[12.5px] ${result?.r.ok ? 'text-good' : 'text-accent'}`}
+            role="status"
+          >
+            {message}
+          </div>
+        )}
+      </Group>
+      <p className="flex items-start gap-2 text-[12.5px] leading-snug text-dim">
+        <FolderOpen size={14} className="mt-0.5 shrink-0" />
+        {t('history_storage_note')}
       </p>
     </div>
   )

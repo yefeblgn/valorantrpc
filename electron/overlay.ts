@@ -25,6 +25,7 @@ export class Overlay {
   private game: GameFocus = { focused: false, physical: null }
   private view: OverlayView = { tracker: false, hud: false }
   private bounds: Rectangle | null = null
+  private interactive = false
   private readonly onDisplays = (): void => this.fit()
 
   constructor(private readonly load: (win: BrowserWindow, view: string) => void) {
@@ -49,6 +50,14 @@ export class Overlay {
     if (game.focused && this.enabled) this.ensure()
     this.syncHotkey()
     this.render()
+  }
+
+  setInteractive(interactive: boolean): void {
+    const next = interactive && this.view.hud
+    if (next === this.interactive) return
+    this.interactive = next
+    const win = this.win
+    if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(!next, { forward: true })
   }
 
   setHud(wanted: boolean): void {
@@ -96,6 +105,7 @@ export class Overlay {
     }
     const changed = next.tracker !== this.view.tracker || next.hud !== this.view.hud
     this.view = next
+    if (!next.hud) this.setInteractive(false)
     if (next.tracker || next.hud) this.reveal()
     else this.conceal()
     if (changed && this.win && !this.win.isDestroyed()) {
@@ -210,7 +220,7 @@ export class Overlay {
         backgroundThrottling: false
       }
     })
-    win.setIgnoreMouseEvents(true)
+    win.setIgnoreMouseEvents(true, { forward: true })
     win.setAlwaysOnTop(true, 'screen-saver')
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     win.once('ready-to-show', () => {
@@ -224,12 +234,14 @@ export class Overlay {
       this.ready = false
       this.shown = false
       this.bounds = null
+      this.interactive = false
     })
     this.load(win, 'overlay')
     this.win = win
     this.ready = false
     this.shown = false
     this.bounds = null
+    this.interactive = false
     return win
   }
 }

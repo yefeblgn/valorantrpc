@@ -143,7 +143,7 @@ Match Insights shows who you are playing with and against, the way tracker sites
 
 - **Agent select:** your team appears as soon as the lobby forms. Rows update as players hover and lock agents.
 - **In match:** both teams are listed side by side. Teams show their average rank.
-- **Agent select HUD:** a compact card on the right of the screen shows your team's ranks, act win rate and K/D, plus your three most played agents on the current map with their win rates. It appears on its own during agent select, no hotkey needed, and can be turned off in **Settings → Match Insights**.
+- **Agent select HUD:** a compact card shows your team's ranks, act win rate and K/D, plus your three most played agents on the current map with their win rates. It appears on its own during agent select, no hotkey needed. The cursor is free in agent select, so you can click a player for their peak, act record, KDA and level, copy their Riot ID, drag the card by its header, shrink it to just your best agents or close it for the match, all without taking focus from the game. Position, size and background are set in **Settings → Match Insights**, with a live preview.
 - **Where:** in the **Live Match** page of the app, and in the in-game panel you open with the hotkey.
 
 | Column | What it shows |
@@ -164,6 +164,22 @@ Your row is marked **YOU** and your party members **PARTY**. Players who turned 
 
 > [!WARNING]
 > Match Insights is **off by default**. Riot's developer policy is against tools that show other players' stats without their consent, and there have been reports of temporary penalties for using tracker apps during matches. Turning it on is your decision and your responsibility.
+
+<br>
+
+## Career
+
+The **Career** page keeps your own match history on this PC, so it works even when VALORANT and the Riot Client are closed. The first time, your last 100 matches are read in the background; after that new matches are added as soon as a game ends, and **Load older matches** goes further back.
+
+- **Matches:** a list like the in-game career tab, grouped by day, with map, agent, score, K/D/A, ACS, HS% and RR change. Open one for the full scoreboard (ACS, ADR, HS%, first kills and deaths, multi-kills), a round-by-round timeline with how each round ended, spike plants and defuses, the kill feed and every player's loadout, and a minimap of kills, deaths and plants for that match or your last matches on the map. **Copy image** puts a scoreboard picture on your clipboard for Discord.
+- **Agents:** matches, win rate, K/D, KDA, ACS, ADR, HS%, first kill rate, ability casts and a per-map breakdown for every agent you play.
+- **Weapons:** kills, kills per round, HS%, damage per round and what kills you most.
+- **Analysis:** pistol, eco, force and full-buy win rates, attack and defense, opening duels, clutches from 1v1 to 1v5 and personal records.
+- **Rank:** RR over time with promotions marked, recent RR changes and a rank goal with an estimate of how many matches it may take.
+
+The home page shows **this session** (wins, losses, net RR, ACS and K/D) and your **last match**. After each match a notification sums it up, and an optional reminder suggests a short break after a losing streak. Both are in **Settings → History**, together with backup export and import.
+
+History lives in `%APPDATA%\ValorantRPC\data`. Updates and reinstalls keep it; only deleting that folder removes it.
 
 <br>
 
@@ -196,6 +212,7 @@ Turn on **Settings → Presence → Text templates** to write the lines yourself
 | `{player}` | `{oyuncu}` | Name#TAG |
 | `{party}` | `{parti}` | 2/5 |
 | `{status}` | `{durum}` | In Game |
+| `{session}` | `{oturum}` | 4W 2L · +38 RR |
 
 Example: `{agent} · {map}` on top and `{status} · {score}` below gives **Hush · Corrode** / **In Game · 7 - 5**.
 
@@ -238,7 +255,7 @@ Requirements: Windows 10 or 11, VALORANT, Discord desktop.
 ## How it works
 
 - The Riot Client writes a local `lockfile`. ValorantRPC reads it to talk to the client's local API on `127.0.0.1`, the same way the game itself does.
-- Your status comes from your own Riot session. Match Insights uses the same session to read ranks and match history from Riot's game services.
+- Your status comes from your own Riot session. Match Insights and Career use the same session to read ranks and match history from Riot's game services; your history is then stored only on this PC.
 - Agent names, map art and rank icons come from the public [valorant-api.com](https://valorant-api.com) and are cached locally.
 - Discord is updated over its local IPC pipe.
 

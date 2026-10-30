@@ -143,7 +143,7 @@ Maç Analizi, tracker sitelerinin yaptığı gibi kiminle ve kime karşı oynad�
 
 - **Ajan seçimi:** lobi kurulur kurulmaz takımın görünür. Oyuncular ajan seçip kilitledikçe satırlar güncellenir.
 - **Maç içi:** iki takım yan yana listelenir. Takımların ortalama rankı başlıkta yazar.
-- **Ajan seçimi HUD'u:** ekranın sağındaki küçük kart takımının rankını, bu perdedeki kazanma oranını ve K/D'sini, ayrıca bu haritada en çok oynadığın üç ajanı kazanma oranlarıyla gösterir. Ajan seçiminde kısayola basmadan kendiliğinden gelir; **Ayarlar → Maç Analizi**'nden kapatılabilir.
+- **Ajan seçimi HUD'u:** küçük bir kart takımının rankını, bu perdedeki kazanma oranını ve K/D'sini, ayrıca bu haritada en çok oynadığın üç ajanı kazanma oranlarıyla gösterir. Ajan seçiminde kısayola basmadan kendiliğinden gelir. Ajan seçiminde imleç serbest olduğu için oyundan odak almadan bir oyuncuya tıklayıp zirve rankını, perde kaydını, KDA'sını ve seviyesini görebilir, Riot ID'sini kopyalayabilir, kartı başlığından sürükleyebilir, yalnızca en iyi ajanlarını gösterecek şekilde küçültebilir ya da o maç için kapatabilirsin. Konum, boyut ve arka plan **Ayarlar → Maç Analizi**'nde canlı önizlemeyle ayarlanır.
 - **Nerede:** uygulamadaki **Canlı Maç** sayfasında ve kısayolla açılan oyun içi panelde.
 
 | Sütun | Ne gösterir |
@@ -164,6 +164,22 @@ Kendi satırın **SEN**, parti arkadaşların **PARTİ** ile işaretlenir. Riot'
 
 > [!WARNING]
 > Maç Analizi **varsayılan olarak kapalıdır**. Riot'un geliştirici politikası, başka oyuncuların istatistiklerini onların izni olmadan gösteren araçlara karşı. Maç sırasında takip uygulaması kullananlara geçici ceza verildiğine dair haberler de var. Açıp açmamak senin kararın ve sorumluluğun.
+
+<br>
+
+## Kariyer
+
+**Kariyer** sayfası kendi maç geçmişini bu bilgisayarda tutar; VALORANT ve Riot Client kapalıyken de çalışır. İlk seferde son 100 maçın arka planda okunur, sonra her maç biter bitmez yenisi eklenir; **Daha eski maçları yükle** daha geriye gider.
+
+- **Maçlar:** oyundaki kariyer sekmesi gibi, güne göre gruplanmış liste: harita, ajan, skor, K/D/A, ACS, HS% ve RR değişimi. Bir maçı açınca tam skor tablosu (ACS, ADR, HS%, ilk leş ve ilk ölümler, çoklu leşler), her turun nasıl bittiği, spike kurulum ve imhaları, öldürme akışı ve herkesin teçhizatıyla tur tur zaman çizelgesi, ayrıca o maç ya da o haritadaki son maçların için leş, ölüm ve kurulumları gösteren mini harita gelir. **Görseli kopyala** Discord'a yapıştırabileceğin bir skor tablosu resmini panoya koyar.
+- **Ajanlar:** oynadığın her ajan için maç, kazanma oranı, K/D, KDA, ACS, ADR, HS%, ilk leş oranı, yetenek kullanımı ve harita kırılımı.
+- **Silahlar:** leş, tur başına leş, HS%, tur başına hasar ve seni en çok öldüren silah.
+- **Analiz:** tabanca, eko, zorla ve tam alım turlarında kazanma oranı, saldırı ve savunma, açılış düelloları, 1v1'den 1v5'e clutch'lar ve kişisel rekorlar.
+- **Rank:** terfi ve düşüşleri işaretli zaman içinde RR, son RR değişimleri ve kaç maç sürebileceği tahminiyle rank hedefi.
+
+Ana sayfa **bu oturumu** (galibiyet, mağlubiyet, net RR, ACS ve K/D) ve **son maçını** gösterir. Her maçtan sonra bir bildirim özet geçer; isteğe bağlı bir hatırlatıcı da art arda kayıplardan sonra kısa bir mola önerir. İkisi de **Ayarlar → Geçmiş**'te, yedeği dışa ve içe aktarma ile birlikte.
+
+Geçmiş `%APPDATA%\ValorantRPC\data` klasöründe durur. Güncellemeler ve yeniden kurulum silmez; yalnızca o klasörü silersen gider.
 
 <br>
 
@@ -196,6 +212,7 @@ Büyük görsel oyuncu kartın, harita görseli ve mod görseli arasında deği�
 | `{oyuncu}` | `{player}` | Ad#ETİKET |
 | `{parti}` | `{party}` | 2/5 |
 | `{durum}` | `{status}` | Oyunda |
+| `{oturum}` | `{session}` | 4G 2M · +38 RR |
 
 Örnek: üstte `{ajan} · {harita}`, altta `{durum} · {skor}` yazarsan Discord'da **HUSH · Corrode** / **Oyunda · 7 - 5** görünür.
 
@@ -238,7 +255,7 @@ Gereksinimler: Windows 10 ya da 11, VALORANT, Discord masaüstü.
 ## Nasıl çalışır
 
 - Riot Client bilgisayarına yerel bir `lockfile` yazar. ValorantRPC bunu okuyup istemcinin `127.0.0.1` üzerindeki yerel API'si ile konuşur; oyunun kendisi de böyle yapar.
-- Durumun senin Riot oturumundan gelir. Maç Analizi de aynı oturumla Riot'un oyun servislerinden rank ve maç geçmişini okur.
+- Durumun senin Riot oturumundan gelir. Maç Analizi ve Kariyer de aynı oturumla Riot'un oyun servislerinden rank ve maç geçmişini okur; geçmişin sonra yalnızca bu bilgisayarda saklanır.
 - Ajan adları, harita görselleri ve rank ikonları herkese açık [valorant-api.com](https://valorant-api.com)'dan alınır ve bilgisayarında önbelleğe alınır.
 - Discord, kendi yerel IPC kanalı üzerinden güncellenir.
 

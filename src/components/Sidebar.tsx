@@ -3,6 +3,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Crosshair,
+  History,
   Home as HomeIcon,
   Info,
   Settings as SettingsIcon
@@ -25,6 +26,7 @@ function fade(collapsed: boolean): string {
 const NAV: { key: PageKey; labelKey: string; icon: typeof HomeIcon }[] = [
   { key: 'home', labelKey: 'nav_home', icon: HomeIcon },
   { key: 'match', labelKey: 'nav_match', icon: Crosshair },
+  { key: 'career', labelKey: 'nav_career', icon: History },
   { key: 'settings', labelKey: 'nav_settings', icon: SettingsIcon },
   { key: 'about', labelKey: 'nav_about', icon: Info }
 ]

@@ -87,7 +87,7 @@ export class AppTray {
     this.tray.setToolTip(`${APP_TITLE} · ${statusText}`)
   }
 
-  notify(message: string, title?: string): void {
+  notify(message: string, title?: string, onClick?: () => void): void {
     try {
       if (!Notification.isSupported()) {
         this.tray.displayBalloon({ title: title ?? APP_TITLE, content: message })
@@ -98,7 +98,7 @@ export class AppTray {
         body: message,
         icon: assetPath('game_icon.png')
       })
-      notice.on('click', () => this.deps.showWindow())
+      notice.on('click', () => (onClick ? onClick() : this.deps.showWindow()))
       notice.show()
       this.lastNotice = notice
     } catch (e) {

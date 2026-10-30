@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { AgentOption, Language } from '@shared/types'
+import type { Catalog, CatalogAgent, CatalogMap, CatalogWeapon } from '@shared/history'
 import { MEDIA, REPO_MEDIA, VALORANT_API, cacheDir } from '../constants'
 import { apiLanguage } from '@shared/i18n'
 import { webClient } from '../lib/http'
@@ -246,20 +247,35 @@ const MODE_NAME: Record<string, Record<Language, string>> = {
   }
 }
 
+const ABILITY_SLOTS = ['Grenade', 'Ability1', 'Ability2', 'Ultimate']
+
 interface AgentEntry {
   name: string
   role: string
   released: number
+  abilities: [string, string, string, string]
 }
 interface ApiAgent {
   uuid: string
   displayName?: string
   releaseDate?: string
   role?: { displayName?: string } | null
+  abilities?: Array<{ slot?: string; displayName?: string }> | null
 }
 interface MapEntry {
   name: string
   uuid: string
+  xMul: number
+  yMul: number
+  xAdd: number
+  yAdd: number
+}
+interface ApiWeapon {
+  uuid: string
+  displayName?: string
+  category?: string
+  displayIcon?: string | null
+  killStreamIcon?: string | null
 }
 interface TierEntry {
   name: string
@@ -287,6 +303,7 @@ export class Content {
   private tiers: Record<number, TierEntry> | null = null
   private seasons: Record<string, SeasonEntry> | null = null
   private seasonsLoading: Promise<void> | null = null
+  private weapons: Record<string, CatalogWeapon> | null = null
   private retryAt = 0
   private staleRetryAt = 0
   private loading: { language: Language; promise: Promise<void> } | null = null
@@ -297,6 +314,7 @@ export class Content {
     if (language !== this.language) {
       this.language = language
       this.agents = this.maps = this.tiers = this.seasons = null
+      this.weapons = null
       this.retryAt = 0
       this.staleRetryAt = 0
     }
@@ -422,10 +440,13 @@ export class Content {
       | ApiAgent[]
       | null
     for (const a of data ?? []) {
+      const ability = (slot: string): string =>
+        a.abilities?.find((ab) => ab.slot === slot)?.displayName ?? ''
       agents[a.uuid.toLowerCase()] = {
         name: a.displayName ?? '',
         role: a.role?.displayName ?? '',
-        released: Date.parse(a.releaseDate ?? '') || 0
+        released: Date.parse(a.releaseDate ?? '') || 0,
+        abilities: ABILITY_SLOTS.map(ability) as AgentEntry['abilities']
       }
     }
     return agents
@@ -433,10 +454,20 @@ export class Content {
 
   private async loadMaps(force: boolean): Promise<Record<string, MapEntry>> {
     const maps: Record<string, MapEntry> = {}
-    const data = (await this.fetch('maps', '/maps', force)) as Array<Record<string, string>> | null
+    const data = (await this.fetch('maps', '/maps', force)) as Array<
+      Record<string, string | number | null>
+    > | null
     for (const m of data ?? []) {
-      const url = (m.mapUrl ?? '').toLowerCase()
-      if (url) maps[url] = { name: m.displayName ?? '', uuid: m.uuid ?? '' }
+      const url = String(m.mapUrl ?? '').toLowerCase()
+      if (!url) continue
+      maps[url] = {
+        name: String(m.displayName ?? ''),
+        uuid: String(m.uuid ?? ''),
+        xMul: Number(m.xMultiplier ?? 0),
+        yMul: Number(m.yMultiplier ?? 0),
+        xAdd: Number(m.xScalarToAdd ?? 0),
+        yAdd: Number(m.yScalarToAdd ?? 0)
+      }
     }
     return maps
   }
@@ -455,6 +486,75 @@ export class Content {
       }
     }
     return tiers
+  }
+
+  private async ensureWeapons(): Promise<Record<string, CatalogWeapon>> {
+    if (this.weapons) return this.weapons
+    const language = this.language
+    const data = (await this.fetch('weapons', '/weapons')) as ApiWeapon[] | null
+    const weapons: Record<string, CatalogWeapon> = {}
+    for (const w of data ?? []) {
+      weapons[w.uuid.toLowerCase()] = {
+        name: w.displayName ?? '',
+        icon: w.displayIcon ?? null,
+        kill: w.killStreamIcon ?? null,
+        category: (w.category ?? '').split('::').pop() ?? ''
+      }
+    }
+    if (language === this.language && Object.keys(weapons).length) this.weapons = weapons
+    return weapons
+  }
+
+  async catalog(queues: string[]): Promise<Catalog> {
+    await this.ensureAll()
+    await this.ensureSeasons()
+    const weapons = await this.ensureWeapons()
+    const agents: Record<string, CatalogAgent> = {}
+    for (const [uuid, a] of Object.entries(this.agents ?? {})) {
+      agents[uuid] = {
+        name: a.name,
+        icon: `${MEDIA}/agents/${uuid}/displayicon.png`,
+        portrait: `${MEDIA}/agents/${uuid}/fullportrait.png`,
+        role: a.role,
+        abilities: a.abilities
+      }
+    }
+    const maps: Record<string, CatalogMap> = {}
+    for (const [path, m] of Object.entries(this.maps ?? {})) {
+      maps[path] = {
+        name: m.name,
+        splash: m.uuid ? `${MEDIA}/maps/${m.uuid}/splash.png` : null,
+        list: m.uuid ? `${MEDIA}/maps/${m.uuid}/listviewicon.png` : null,
+        minimap: m.uuid && m.xMul ? `${MEDIA}/maps/${m.uuid}/displayicon.png` : null,
+        xMul: m.xMul,
+        yMul: m.yMul,
+        xAdd: m.xAdd,
+        yAdd: m.yAdd
+      }
+    }
+    const seasons: Catalog['seasons'] = {}
+    for (const [id, season] of Object.entries(this.seasons ?? {})) {
+      seasons[id] = {
+        label: this.actLabel(id) || season.name,
+        start: season.start,
+        end: season.end,
+        act: season.act
+      }
+    }
+    const modes: Catalog['modes'] = {}
+    for (const q of new Set(['', 'custom', ...queues])) {
+      modes[q] = { name: this.modeName(q), icon: this.modeIcon(q) }
+    }
+    return {
+      language: this.language,
+      agents,
+      maps,
+      weapons,
+      tiers: { ...(this.tiers ?? {}) },
+      seasons,
+      modes,
+      currentAct: this.currentAct()
+    }
   }
 
   async ensureSeasons(): Promise<void> {

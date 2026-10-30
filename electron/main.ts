@@ -1,7 +1,16 @@
 import { execFile } from 'child_process'
 import { join } from 'path'
-import { app, BrowserWindow, globalShortcut, ipcMain, shell } from 'electron'
-import type { MatchReport, PlayerInfo, Settings, Snapshot } from '@shared/types'
+import { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, shell } from 'electron'
+import type {
+  MatchReport,
+  NavigateTarget,
+  PlayerInfo,
+  Settings,
+  ShareAction,
+  Snapshot,
+  TransferResult
+} from '@shared/types'
+import { acs, lossStreak, type MatchSummary } from '@shared/history'
 import { IPC } from '@shared/ipc'
 import { t } from '@shared/i18n'
 import { APP_ID, APP_TITLE, DISCORD_CLIENT_ID, assetPath, executablePath } from './constants'
@@ -10,6 +19,7 @@ import { Poller, type Notice } from './core/poller'
 import { AppTray } from './tray'
 import { Overlay } from './overlay'
 import { GameWatcher, type GameFocus } from './gameWindow'
+import { ShareRenderer } from './share'
 import { applySize, resolveSize, themeBackground, windowInfo } from './windowSize'
 import {
   checkForUpdates,
@@ -28,6 +38,9 @@ let isQuitting = false
 let trayHideNotified = false
 let valorantRunning = false
 let fallbackFocus: boolean | null = null
+let pendingNav: NavigateTarget | null = null
+let dismissedMatch = ''
+const MAX_CLIPBOARD = 200
 
 const game = new GameWatcher()
 game.on('change', (focus: GameFocus) => overlay?.setGame(focus))
@@ -108,7 +121,52 @@ function syncGame(): void {
 }
 
 function syncHud(report: MatchReport | null): void {
-  overlay?.setHud(loadSettings().hudEnabled && report?.phase === 'pregame')
+  overlay?.setHud(
+    loadSettings().hudEnabled && report?.phase === 'pregame' && report.matchId !== dismissedMatch
+  )
+}
+
+poller.history.on('changed', () => broadcast(IPC.historyChanged, poller.history.status()))
+poller.history.on('newMatches', (list: MatchSummary[]) => onNewMatches(list))
+
+function onNewMatches(list: MatchSummary[]): void {
+  const settings = loadSettings()
+  const lang = settings.language
+  const latest = list[0]
+  if (settings.postMatchNotify && latest) {
+    const map = poller.content.mapInfo(latest.map)[0]
+    const agent = poller.content.agentName(latest.agent)
+    const score = `${latest.ally}-${latest.enemy}`
+    const title = [t(lang, `result_${latest.result}`), score, map].filter(Boolean).join(' · ')
+    const parts = [
+      agent,
+      `${latest.kills}/${latest.deaths}/${latest.assists}`,
+      `${t(lang, 'acs')} ${acs(latest)}`
+    ]
+    if (latest.rr && !settings.streamerMode) {
+      parts.push(`${latest.rr.change > 0 ? '+' : ''}${latest.rr.change} RR`)
+    }
+    if (latest.mvp) parts.push(t(lang, latest.mvp === 'match' ? 'mvp_match' : 'mvp_team'))
+    if (latest.multi[2] > 0) parts.push(t(lang, 'ace'))
+    tray?.notify(parts.filter(Boolean).join(' · '), title, () =>
+      navigate({ page: 'career', matchId: latest.id })
+    )
+  }
+  if (settings.tiltEnabled) {
+    const fresh = new Set(list.map((m) => m.id))
+    const all = poller.history.store.state.matches.filter((m) => !m.custom)
+    const streak = lossStreak(all)
+    const before = lossStreak(all.filter((m) => !fresh.has(m.id)))
+    if (streak >= settings.tiltThreshold && before < settings.tiltThreshold) {
+      tray?.notify(t(lang, 'tilt_desc').replace('{n}', String(streak)), t(lang, 'tilt_title'))
+    }
+  }
+}
+
+function navigate(target: NavigateTarget): void {
+  pendingNav = target
+  showWindow()
+  mainWindow?.webContents.send(IPC.navigate)
 }
 
 poller.on('notice', (notice: Notice) => {
@@ -215,6 +273,12 @@ function loadRenderer(win: BrowserWindow, view = ''): void {
   }
 }
 
+const share = new ShareRenderer(
+  loadRenderer,
+  () => loadSettings().uiScale / 100,
+  () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null)
+)
+
 function registerIpc(): void {
   ipcMain.on(IPC.windowMinimize, () => mainWindow?.minimize())
   ipcMain.on(IPC.windowClose, () => mainWindow?.close())
@@ -239,12 +303,77 @@ function registerIpc(): void {
   ipcMain.handle(IPC.hotkeyStatus, () => overlay?.hotkeyOk() ?? true)
   ipcMain.handle(IPC.windowInfo, () => windowInfo(mainWindow))
 
+  ipcMain.on(IPC.overlayInteractive, (_e, interactive: unknown) =>
+    overlay?.setInteractive(interactive === true)
+  )
+  ipcMain.on(IPC.overlayDismiss, () => {
+    dismissedMatch = poller.match.getReport()?.matchId ?? ''
+    syncHud(poller.match.getReport())
+  })
+  ipcMain.on(IPC.clipboardWrite, (_e, text: unknown) => {
+    if (typeof text === 'string' && text.length <= MAX_CLIPBOARD) clipboard.writeText(text)
+  })
+  ipcMain.handle(IPC.takeNavigate, () => {
+    const target = pendingNav
+    pendingNav = null
+    return target
+  })
+
+  const optional = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined)
+  ipcMain.handle(IPC.historyStatus, () => poller.history.status())
+  ipcMain.handle(IPC.historyData, (_e, puuid: unknown) => poller.history.data(optional(puuid)))
+  ipcMain.handle(IPC.historyDetail, (_e, id: unknown, puuid: unknown) =>
+    typeof id === 'string' ? poller.history.detail(id, optional(puuid)) : null
+  )
+  ipcMain.on(IPC.historySync, () => {
+    poller.history.requestSync()
+    poller.forceRefresh()
+  })
+  ipcMain.on(IPC.historyBackfill, () => {
+    poller.history.requestBackfill()
+    poller.forceRefresh()
+  })
+  ipcMain.handle(IPC.historyExport, () => transfer('export'))
+  ipcMain.handle(IPC.historyImport, () => transfer('import'))
+  ipcMain.handle(IPC.catalogGet, () => poller.content.catalog(poller.history.queues()))
+  ipcMain.handle(IPC.shareImage, (_e, id: unknown, action: unknown, puuid: unknown) => {
+    if (typeof id !== 'string') return false
+    const mode: ShareAction = action === 'save' ? 'save' : 'copy'
+    return share.render(id, mode, optional(puuid) ?? poller.history.puuid)
+  })
+
   ipcMain.handle(IPC.updateGet, () => getUpdateState())
   ipcMain.handle(IPC.updateCheck, () => checkForUpdates())
   ipcMain.on(IPC.updateStart, () => {
     if (getUpdateState().downloaded) isQuitting = true
     startUpdate()
   })
+}
+
+async function transfer(kind: 'export' | 'import'): Promise<TransferResult> {
+  const filters = [{ name: 'ValorantRPC', extensions: ['vrpc'] }]
+  const parent = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
+  try {
+    if (kind === 'export') {
+      const date = new Date().toISOString().slice(0, 10)
+      const options = { defaultPath: `valorantrpc-history-${date}.vrpc`, filters }
+      const r = parent
+        ? await dialog.showSaveDialog(parent, options)
+        : await dialog.showSaveDialog(options)
+      if (r.canceled || !r.filePath) return { ok: false, count: 0 }
+      return { ok: true, count: poller.history.exportTo(r.filePath) }
+    }
+    const options = { filters, properties: ['openFile' as const] }
+    const r = parent
+      ? await dialog.showOpenDialog(parent, options)
+      : await dialog.showOpenDialog(options)
+    const path = r.filePaths[0]
+    if (r.canceled || !path) return { ok: false, count: 0 }
+    return { ok: true, count: poller.history.importFrom(path) }
+  } catch (e) {
+    console.warn(`[main] history ${kind} failed:`, e)
+    return { ok: false, count: 0, error: e instanceof Error ? e.message : String(e) }
+  }
 }
 
 function registerDiscordProtocol(): void {

@@ -11,6 +11,7 @@ import type {
 } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 import { renderTemplate, type TemplateState, type TemplateValues } from '@shared/templates'
+import type { SessionSummary } from '@shared/history'
 import { FALLBACK_LARGE_IMAGE } from '../constants'
 import { t } from '@shared/i18n'
 import type { Content } from '../riot/content'
@@ -330,7 +331,24 @@ function statusLine(state: GameState, language: Language): string {
   return t(language, 'p_in_menu')
 }
 
-function templateValues(state: GameState, content: Content, language: Language): TemplateValues {
+export function sessionText(
+  session: SessionSummary | null,
+  language: Language,
+  hideRr: boolean
+): string {
+  if (!session) return ''
+  const record = `${session.wins}${t(language, 'wins_short')} ${session.losses}${t(language, 'losses_short')}`
+  if (hideRr || !session.rrKnown) return record
+  return `${record} · ${session.rr > 0 ? '+' : ''}${session.rr} RR`
+}
+
+function templateValues(
+  state: GameState,
+  settings: Settings,
+  content: Content,
+  language: Language,
+  session: SessionSummary | null
+): TemplateValues {
   return {
     mode: isCustom(state) ? t(language, 'custom') : modeLabel(state, content, language),
     map: content.mapInfo(state.mapPath)[0],
@@ -341,7 +359,8 @@ function templateValues(state: GameState, content: Content, language: Language):
     level: state.accountLevel ? String(state.accountLevel) : '',
     player: state.name ? `${state.name}#${state.tag}` : '',
     party: state.partySize > 0 ? `${state.partySize}/${state.partyMax}` : '',
-    status: statusLine(state, language)
+    status: statusLine(state, language),
+    session: sessionText(session, language, settings.streamerMode)
   }
 }
 
@@ -350,11 +369,12 @@ function applyTemplates(
   state: GameState,
   settings: Settings,
   content: Content,
-  language: Language
+  language: Language,
+  session: SessionSummary | null
 ): void {
   const lines = settings.templates[templateKey(state)]
   if (!lines.details.trim() && !lines.state.trim()) return
-  const values = templateValues(state, content, language)
+  const values = templateValues(state, settings, content, language, session)
   const details = lines.details.trim() ? renderTemplate(lines.details, values) : ''
   const stateLine = lines.state.trim() ? renderTemplate(lines.state, values) : ''
   if (details) p.details = details
@@ -383,7 +403,8 @@ export function buildPresence(
   content: Content,
   language: Language,
   startTs: number,
-  invite: PartyInvite | null = null
+  invite: PartyInvite | null = null,
+  session: SessionSummary | null = null
 ): BuiltPresence | null {
   if (rawState.sessionState === 'idle') return null
   const state = publicState(rawState, settings)
@@ -395,7 +416,7 @@ export function buildPresence(
   else p = buildMenu(state, settings, content, language)
 
   applyOverrides(p, state, settings, content, language)
-  if (settings.templatesEnabled) applyTemplates(p, state, settings, content, language)
+  if (settings.templatesEnabled) applyTemplates(p, state, settings, content, language, session)
 
   if (settings.showElapsed) p.startTimestamp = startTs
   if (settings.showParty && state.partySize > 0) {

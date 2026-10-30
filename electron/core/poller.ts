@@ -18,7 +18,7 @@ import { LocalAuth, RiotNotRunning } from '../riot/localAuth'
 import { detectLocale, detectPlayer, detectRegionShard } from '../riot/region'
 import { DiscordRPC } from './discordRpc'
 import { MatchStats, type MatchTarget } from './matchStats'
-import { OwnHistory } from './ownHistory'
+import { HistoryService } from '../history/service'
 import { buildDisplay, buildPresence, canInvite, type PartyInvite } from './presence'
 import {
   idleState,
@@ -78,7 +78,7 @@ export class Poller extends EventEmitter {
   readonly content: Content
   readonly discord: DiscordRPC
   readonly match: MatchStats
-  readonly history: OwnHistory
+  readonly history: HistoryService
 
   private stopped = true
   private state: GameState
@@ -113,7 +113,7 @@ export class Poller extends EventEmitter {
     const s = this.getSettings()
     this.content = new Content(s.language)
     this.discord = new DiscordRPC(DISCORD_CLIENT_ID)
-    this.history = new OwnHistory()
+    this.history = new HistoryService()
     this.match = new MatchStats(this.content, this.history)
     this.match.on('report', (report) => this.emit('match', report))
     this.state = idleState()
@@ -160,7 +160,8 @@ export class Poller extends EventEmitter {
             this.content,
             settings.language,
             this.startTs,
-            this.currentInvite()
+            this.currentInvite(),
+            this.history.session()
           )
         : null
     return {
@@ -281,7 +282,7 @@ export class Poller extends EventEmitter {
 
     const now = Date.now()
     const loopChanged = state.sessionState !== this.lastLoop
-    if (this.lastLoop === 'ingame' && state.sessionState === 'menus') this.history.requestSync()
+    if (this.lastLoop === 'ingame' && state.sessionState === 'menus') this.history.requestSync(true)
     this.lastLoop = state.sessionState
     const nearMatch =
       state.sessionState === 'ingame' || state.sessionState === 'pregame' || !!state.mapPath
@@ -318,8 +319,8 @@ export class Poller extends EventEmitter {
     if (inRange(state) && state.partyId) await this.syncRangeParty(api, state, now)
     else this.rangeParty = null
 
-    this.history.setPlayer(this.auth?.puuid ?? '')
-    if (settings.overlayEnabled && state.sessionState !== 'ingame') this.history.sync(api)
+    this.history.setConnected(true)
+    this.history.tick(api, settings.historyEnabled && state.sessionState !== 'ingame')
 
     this.match.sync(api, this.matchTarget(state, settings), {
       puuid: this.auth?.puuid ?? '',
@@ -401,6 +402,7 @@ export class Poller extends EventEmitter {
     const [name, tag] = await detectPlayer(auth)
     this.playerName = name || this.playerName
     this.playerTag = tag || this.playerTag
+    this.history.setAccount(auth.puuid ?? '', this.playerName, this.playerTag)
     console.info(`[poller] Riot connected: ${name}#${tag} [${region}/${shard}]`)
   }
 
@@ -420,6 +422,7 @@ export class Poller extends EventEmitter {
   }
 
   private setIdle(): void {
+    this.history.setConnected(false)
     this.auth = null
     this.api = null
     this.presenceErrors = 0
@@ -513,12 +516,14 @@ export class Poller extends EventEmitter {
   private pushPresence(state: GameState): void {
     const settings = this.getSettings()
     const invite = this.currentInvite()
+    const session = this.history.session()
     const sig = [
       signature(state),
       settings.rpcEnabled,
       settings.language,
       this.discordConnected,
-      invite?.secret ?? ''
+      invite?.secret ?? '',
+      session ? `${session.wins}/${session.losses}/${session.rr}` : ''
     ].join('|')
     if (sig === this.lastSignature) return
     this.lastSignature = sig
@@ -532,7 +537,8 @@ export class Poller extends EventEmitter {
         this.content,
         settings.language,
         this.startTs,
-        invite
+        invite,
+        session
       )
       if (built) {
         const ok = this.discord.update(built)

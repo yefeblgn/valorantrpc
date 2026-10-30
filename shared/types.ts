@@ -1,6 +1,6 @@
 import { DEFAULT_TEMPLATES, type PresenceTemplates } from './templates'
 
-export type PageKey = 'home' | 'match' | 'settings' | 'about'
+export type PageKey = 'home' | 'match' | 'career' | 'settings' | 'about'
 
 export const LANGUAGES = ['tr', 'en', 'es', 'fr', 'ja', 'zh', 'ar'] as const
 
@@ -116,7 +116,27 @@ export interface Settings {
   overlayEnabled: boolean
   overlayHotkey: string
   hudEnabled: boolean
+  hudCompact: boolean
+  hudLayout: HudLayout
+
+  historyEnabled: boolean
+  postMatchNotify: boolean
+  tiltEnabled: boolean
+  tiltThreshold: number
+  rankGoal: number
 }
+
+export interface HudLayout {
+  x: number
+  y: number
+  scale: number
+  opacity: number
+}
+
+export const DEFAULT_HUD_LAYOUT: HudLayout = { x: 0.975, y: 0.17, scale: 1, opacity: 0.88 }
+export const HUD_SCALE_RANGE: [number, number] = [0.7, 1.4]
+export const HUD_OPACITY_RANGE: [number, number] = [0.5, 1]
+export const TILT_RANGE: [number, number] = [2, 6]
 
 export const DEFAULT_SETTINGS: Settings = {
   language: 'en',
@@ -156,7 +176,14 @@ export const DEFAULT_SETTINGS: Settings = {
   autolockAgent: '',
   overlayEnabled: false,
   overlayHotkey: 'Ctrl+T',
-  hudEnabled: true
+  hudEnabled: true,
+  hudCompact: false,
+  hudLayout: DEFAULT_HUD_LAYOUT,
+  historyEnabled: true,
+  postMatchNotify: true,
+  tiltEnabled: false,
+  tiltThreshold: 3,
+  rankGoal: 0
 }
 
 export interface PlayerStats {
@@ -222,6 +249,19 @@ export interface MatchReport {
   modeIcon: string | null
   teams: MatchTeam[]
   mapStats: MapStats | null
+}
+
+export interface NavigateTarget {
+  page: PageKey
+  matchId?: string
+}
+
+export type ShareAction = 'copy' | 'save'
+
+export interface TransferResult {
+  ok: boolean
+  count: number
+  error?: string
 }
 
 export interface OverlayView {

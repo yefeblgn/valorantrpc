@@ -5,16 +5,29 @@ import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/Sidebar'
 import { Home } from './pages/Home'
 import { Match } from './pages/Match'
+import { Career } from './pages/Career'
 import { Settings } from './pages/Settings'
 import { About } from './pages/About'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { TipProvider } from './components/ui/Tip'
 import { initStore, useStore } from './store'
 import { useAppearance } from './lib/useAppearance'
+import { initHistory, useHistoryStore } from './lib/history'
 
-const PAGES: { key: PageKey; render: () => JSX.Element }[] = [
-  { key: 'home', render: () => <Home /> },
+const PAGES: { key: PageKey; render: (go: (page: PageKey) => void) => JSX.Element }[] = [
+  {
+    key: 'home',
+    render: (go) => (
+      <Home
+        onOpenMatch={(id) => {
+          useHistoryStore.getState().setOpenMatch(id)
+          go('career')
+        }}
+      />
+    )
+  },
   { key: 'match', render: () => <Match /> },
+  { key: 'career', render: () => <Career /> },
   { key: 'settings', render: () => <Settings /> },
   { key: 'about', render: () => <About /> }
 ]
@@ -38,6 +51,16 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     void initStore()
+    initHistory()
+    const take = (): void => {
+      void window.api.takeNavigate().then((target) => {
+        if (!target) return
+        openPage(target.page)
+        if (target.matchId) useHistoryStore.getState().setOpenMatch(target.matchId)
+      })
+    }
+    take()
+    return window.api.onNavigate(take)
   }, [])
 
   useEffect(() => {
@@ -73,7 +96,7 @@ export default function App(): JSX.Element {
               ) : (
                 PAGES.filter((p) => visited.includes(p.key)).map((p) => (
                   <div key={p.key} className={p.key === page ? 'page-enter min-h-full' : 'hidden'}>
-                    <ErrorBoundary>{p.render()}</ErrorBoundary>
+                    <ErrorBoundary>{p.render(openPage)}</ErrorBoundary>
                   </div>
                 ))
               )}

@@ -3,7 +3,7 @@ import type { MapStats, MatchPlayer, MatchReport, MatchTeam, PlayerStats } from 
 import { t } from '@shared/i18n'
 import type { PlayerName, RiotApi } from '../riot/api'
 import type { Content } from '../riot/content'
-import type { OwnHistory } from './ownHistory'
+import type { HistoryService } from '../history/service'
 
 const ROSTER_REFRESH = { pregame: 4000, ingame: 30_000 }
 const STATS_TTL = 15 * 60 * 1000
@@ -134,10 +134,10 @@ export class MatchStats extends EventEmitter {
 
   constructor(
     private readonly content: Content,
-    private readonly history: OwnHistory
+    private readonly history: HistoryService
   ) {
     super()
-    history.on('updated', () => this.publish())
+    history.on('changed', () => this.publish())
   }
 
   getReport(): MatchReport | null {
@@ -343,7 +343,7 @@ export class MatchStats extends EventEmitter {
   }
 
   private mapStats(): MapStats | null {
-    if (!this.meta.mapPath || !this.history.hasPlayer()) return null
+    if (!this.meta.mapPath || !this.history.puuid) return null
     const record = this.history.forMap(this.meta.mapPath)
     return {
       state: this.history.isReady() ? 'ready' : 'syncing',
