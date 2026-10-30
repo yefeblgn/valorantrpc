@@ -110,8 +110,8 @@ Runs entirely on your PC. No API keys, no account login, no servers in between.
     </td>
     <td valign="top">
       <img src=".github/assets/icons/language.svg" width="26" alt=""><br>
-      <b>English and Turkish</b><br>
-      The interface and every Discord line are available in both languages; the client language is detected on first launch.
+      <b>Seven languages</b><br>
+      English, Türkçe, Español, Français, 日本語, 简体中文 and العربية (right-to-left) for the interface and every Discord line; the client language is detected on first launch.
     </td>
   </tr>
   <tr>
@@ -143,6 +143,7 @@ Match Insights shows who you are playing with and against, the way tracker sites
 
 - **Agent select:** your team appears as soon as the lobby forms. Rows update as players hover and lock agents.
 - **In match:** both teams are listed side by side. Teams show their average rank.
+- **Agent select HUD:** a compact card on the right of the screen shows your team's ranks, act win rate and K/D, plus your three most played agents on the current map with their win rates. It appears on its own during agent select, no hotkey needed, and can be turned off in **Settings → Match Insights**.
 - **Where:** in the **Live Match** page of the app, and in the in-game panel you open with the hotkey.
 
 | Column | What it shows |
@@ -156,10 +157,10 @@ Match Insights shows who you are playing with and against, the way tracker sites
 
 Your row is marked **YOU** and your party members **PARTY**. Players who turned on Riot's *hide my name* setting stay hidden: you see their agent, never their Riot ID.
 
-**Hotkey.** <kbd>Ctrl</kbd> + <kbd>T</kbd> by default. To change it, open **Settings → Match Insights**, click the hotkey box and press the keys you want. Combinations like <kbd>Alt</kbd> + <kbd>Q</kbd> work, and so do single keys such as <kbd>F6</kbd>, <kbd>Insert</kbd> or <kbd>Home</kbd>. <kbd>Esc</kbd> cancels.
+**Hotkey.** <kbd>Ctrl</kbd> + <kbd>T</kbd> by default. To change it, open **Settings → Match Insights**, click the hotkey box and press the keys you want. Combinations like <kbd>Alt</kbd> + <kbd>Q</kbd> work, and so do single keys such as <kbd>F6</kbd>, <kbd>Insert</kbd> or <kbd>Home</kbd>. <kbd>Esc</kbd> cancels. The hotkey is only active while VALORANT is the window in front, so it never opens the panel over your desktop or steals the combination from other apps.
 
 > [!IMPORTANT]
-> The panel can only draw over the game when VALORANT's display mode is **Windowed Fullscreen**. Windows does not allow overlays on exclusive fullscreen. In that case, use the Live Match page on a second screen or with <kbd>Alt</kbd> + <kbd>Tab</kbd>.
+> The panel and the HUD follow the game's window and scale with its resolution, in both **Fullscreen** and **Windowed Fullscreen**. If they stay hidden in Fullscreen, check that fullscreen optimizations are not turned off for `VALORANT-Win64-Shipping.exe` (Properties → Compatibility), or switch to Windowed Fullscreen.
 
 > [!WARNING]
 > Match Insights is **off by default**. Riot's developer policy is against tools that show other players' stats without their consent, and there have been reports of temporary penalties for using tracker apps during matches. Turning it on is your decision and your responsibility.
@@ -256,7 +257,7 @@ Make sure the Discord desktop app is running, and that **User Settings → Activ
 <details>
 <summary><b>The in-game panel does not appear</b></summary>
 
-Set VALORANT's display mode to **Windowed Fullscreen** and make sure Match Insights is turned on. With exclusive fullscreen, use the Live Match page instead.
+Make sure Match Insights is turned on and VALORANT is the window in front. If you play in Fullscreen, check that fullscreen optimizations are not turned off for VALORANT, or switch to Windowed Fullscreen.
 </details>
 
 <details>

@@ -17,9 +17,8 @@ export const IPC = {
   updateState: 'update:state',
   matchGet: 'match:get',
   matchChanged: 'match:changed',
-  overlayToggle: 'overlay:toggle',
-  overlayVisible: 'overlay:visible',
-  overlayGetVisible: 'overlay:get-visible',
+  overlayView: 'overlay:view',
+  overlayGetView: 'overlay:get-view',
   hotkeyPause: 'hotkey:pause',
   hotkeyStatus: 'hotkey:status',
   windowInfo: 'window:info'

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AgentOption,
   MatchReport,
+  OverlayView,
   Settings,
   Snapshot,
   UpdateInfo,
@@ -44,10 +45,8 @@ const api = {
   getMatch: (): Promise<MatchReport | null> => ipcRenderer.invoke(IPC.matchGet),
   onMatchChanged: (cb: (r: MatchReport | null) => void): Unsubscribe =>
     subscribe(IPC.matchChanged, cb),
-  toggleOverlay: (): void => ipcRenderer.send(IPC.overlayToggle),
-  getOverlayVisible: (): Promise<boolean> => ipcRenderer.invoke(IPC.overlayGetVisible),
-  onOverlayVisible: (cb: (visible: boolean) => void): Unsubscribe =>
-    subscribe(IPC.overlayVisible, cb),
+  getOverlayView: (): Promise<OverlayView> => ipcRenderer.invoke(IPC.overlayGetView),
+  onOverlayView: (cb: (view: OverlayView) => void): Unsubscribe => subscribe(IPC.overlayView, cb),
   pauseHotkey: (paused: boolean): void => ipcRenderer.send(IPC.hotkeyPause, paused),
   getHotkeyStatus: (): Promise<boolean> => ipcRenderer.invoke(IPC.hotkeyStatus),
   getWindowInfo: (): Promise<WindowInfo> => ipcRenderer.invoke(IPC.windowInfo)

@@ -67,7 +67,7 @@ export function Match(): JSX.Element {
         <div className="flex items-start gap-3 text-[12.5px] leading-snug text-dim">
           <Info size={14} className="mt-0.5 shrink-0" />
           <span>
-            {t('overlay_borderless')} {t('overlay_privacy')}
+            {t('overlay_focus_note')} {t('overlay_display_note')} {t('overlay_privacy')}
           </span>
         </div>
       )}
@@ -78,7 +78,7 @@ export function Match(): JSX.Element {
 export function RiskNote(): JSX.Element {
   const t = useT()
   return (
-    <div className="flex items-start gap-3 border border-warn/40 border-l-[3px] border-l-warn bg-warn/[0.06] px-4 py-3">
+    <div className="flex items-start gap-3 border border-warn/40 border-s-[3px] border-s-warn bg-warn/[0.06] px-4 py-3">
       <ShieldAlert size={16} className="mt-0.5 shrink-0 text-warn" />
       <div>
         <div className="display text-[13px] tracking-[0.12em] text-warn">

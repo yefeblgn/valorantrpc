@@ -110,8 +110,8 @@ Tamamen senin bilgisayarında çalışır. API anahtarı, hesap girişi ya da ar
     </td>
     <td valign="top">
       <img src=".github/assets/icons/language.svg" width="26" alt=""><br>
-      <b>Türkçe ve İngilizce</b><br>
-      Arayüz ve tüm Discord satırları iki dilde; istemci dili ilk açılışta otomatik algılanır.
+      <b>Yedi dil</b><br>
+      Arayüz ve tüm Discord satırları Türkçe, English, Español, Français, 日本語, 简体中文 ve العربية (sağdan sola) dillerinde; istemci dili ilk açılışta otomatik algılanır.
     </td>
   </tr>
   <tr>
@@ -143,6 +143,7 @@ Maç Analizi, tracker sitelerinin yaptığı gibi kiminle ve kime karşı oynad�
 
 - **Ajan seçimi:** lobi kurulur kurulmaz takımın görünür. Oyuncular ajan seçip kilitledikçe satırlar güncellenir.
 - **Maç içi:** iki takım yan yana listelenir. Takımların ortalama rankı başlıkta yazar.
+- **Ajan seçimi HUD'u:** ekranın sağındaki küçük kart takımının rankını, bu perdedeki kazanma oranını ve K/D'sini, ayrıca bu haritada en çok oynadığın üç ajanı kazanma oranlarıyla gösterir. Ajan seçiminde kısayola basmadan kendiliğinden gelir; **Ayarlar → Maç Analizi**'nden kapatılabilir.
 - **Nerede:** uygulamadaki **Canlı Maç** sayfasında ve kısayolla açılan oyun içi panelde.
 
 | Sütun | Ne gösterir |
@@ -156,10 +157,10 @@ Maç Analizi, tracker sitelerinin yaptığı gibi kiminle ve kime karşı oynad�
 
 Kendi satırın **SEN**, parti arkadaşların **PARTİ** ile işaretlenir. Riot'un *adımı gizle* ayarını açmış oyuncular gizli kalır: ajanlarını görürsün, Riot ID'lerini asla.
 
-**Kısayol.** Varsayılanı <kbd>Ctrl</kbd> + <kbd>T</kbd>. Değiştirmek için **Ayarlar → Maç Analizi**'ne gir, kısayol kutusuna tıkla ve istediğin tuşlara bas. <kbd>Alt</kbd> + <kbd>Q</kbd> gibi kombinasyonlar da, <kbd>F6</kbd>, <kbd>Insert</kbd>, <kbd>Home</kbd> gibi tek tuşlar da olur. <kbd>Esc</kbd> iptal eder.
+**Kısayol.** Varsayılanı <kbd>Ctrl</kbd> + <kbd>T</kbd>. Değiştirmek için **Ayarlar → Maç Analizi**'ne gir, kısayol kutusuna tıkla ve istediğin tuşlara bas. <kbd>Alt</kbd> + <kbd>Q</kbd> gibi kombinasyonlar da, <kbd>F6</kbd>, <kbd>Insert</kbd>, <kbd>Home</kbd> gibi tek tuşlar da olur. <kbd>Esc</kbd> iptal eder. Kısayol yalnızca VALORANT öndeki pencereyken çalışır; masaüstünde paneli açmaz ve tuş kombinasyonunu diğer uygulamalardan çalmaz.
 
 > [!IMPORTANT]
-> Panel oyunun üstünde ancak VALORANT ekran modu **Pencereli Tam Ekran** olduğunda görünür. Windows, tam ekran moddaki oyunların üstüne başka pencere çizdirmez. Bu durumda Canlı Maç sayfasını ikinci ekranda ya da <kbd>Alt</kbd> + <kbd>Tab</kbd> ile kullanabilirsin.
+> Panel ve HUD oyun penceresini takip eder ve çözünürlüğe göre ölçeklenir; **Tam Ekran**'da da **Pencereli Tam Ekran**'da da çalışır. Tam Ekranda görünmüyorsa `VALORANT-Win64-Shipping.exe` için tam ekran iyileştirmelerinin kapatılmadığını kontrol et (Özellikler → Uyumluluk) ya da Pencereli Tam Ekran'a geç.
 
 > [!WARNING]
 > Maç Analizi **varsayılan olarak kapalıdır**. Riot'un geliştirici politikası, başka oyuncuların istatistiklerini onların izni olmadan gösteren araçlara karşı. Maç sırasında takip uygulaması kullananlara geçici ceza verildiğine dair haberler de var. Açıp açmamak senin kararın ve sorumluluğun.
@@ -256,7 +257,7 @@ Discord masaüstü uygulamasının açık olduğundan ve **Kullanıcı Ayarları
 <details>
 <summary><b>Oyun içi panel çıkmıyor</b></summary>
 
-VALORANT ekran modunu **Pencereli Tam Ekran** yap ve Maç Analizi'nin açık olduğunu kontrol et. Tam ekran modda Canlı Maç sayfasını kullan.
+Maç Analizi'nin açık ve VALORANT'ın öndeki pencere olduğunu kontrol et. Tam Ekranda oynuyorsan VALORANT için tam ekran iyileştirmelerinin kapatılmadığına bak ya da Pencereli Tam Ekran'a geç.
 </details>
 
 <details>

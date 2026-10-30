@@ -18,6 +18,12 @@ export interface PartyInfo {
   members: string[]
 }
 
+export interface HistoryEntry {
+  matchId: string
+  queueId: string
+  startTime: number
+}
+
 export interface PlayerName {
   puuid: string
   name: string
@@ -124,6 +130,24 @@ export class RiotApi {
       return ((data.History ?? []) as Json[]).map((m) => String(m.MatchID ?? '')).filter(Boolean)
     } catch (e) {
       console.debug('[api] history error:', e)
+      return null
+    }
+  }
+
+  async historyPage(puuid: string, start: number, end: number): Promise<HistoryEntry[] | null> {
+    const url = `${this.pd}/match-history/v1/history/${puuid}?startIndex=${start}&endIndex=${end}`
+    try {
+      const data = await this.fetchJson(() => this.remoteGet(url))
+      if (!data) return null
+      return ((data.History ?? []) as Json[])
+        .map((m) => ({
+          matchId: String(m.MatchID ?? ''),
+          queueId: String(m.QueueID ?? ''),
+          startTime: Number(m.GameStartTime ?? 0)
+        }))
+        .filter((m) => m.matchId)
+    } catch (e) {
+      console.debug('[api] history page error:', e)
       return null
     }
   }

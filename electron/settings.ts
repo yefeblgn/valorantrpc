@@ -2,8 +2,10 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { app } from 'electron'
 import {
   DEFAULT_SETTINGS,
+  LANGUAGES,
   UI_SCALES,
   WINDOW_SIZES,
+  type Language,
   type ThemeMode,
   type WindowSizeKey,
   type LargeImageMode,
@@ -74,7 +76,7 @@ function sanitize(s: Settings): Settings {
   const d = DEFAULT_SETTINGS
   return {
     ...s,
-    language: s.language === 'tr' ? 'tr' : 'en',
+    language: oneOf<Language>(s.language, [...LANGUAGES], d.language),
     languageDetected: bool(s.languageDetected, d.languageDetected),
     rpcEnabled: bool(s.rpcEnabled, d.rpcEnabled),
     autostart: bool(s.autostart, d.autostart),
@@ -119,7 +121,8 @@ function sanitize(s: Settings): Settings {
     overlayHotkey:
       typeof s.overlayHotkey === 'string' && s.overlayHotkey.trim()
         ? s.overlayHotkey.trim().slice(0, 48)
-        : d.overlayHotkey
+        : d.overlayHotkey,
+    hudEnabled: bool(s.hudEnabled, d.hudEnabled)
   }
 }
 

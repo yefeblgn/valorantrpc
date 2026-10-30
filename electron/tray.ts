@@ -1,5 +1,5 @@
 import { Menu, Notification, Tray, nativeImage } from 'electron'
-import type { Language, Settings } from '@shared/types'
+import { LANGUAGES, LANGUAGE_NAMES, type Language, type Settings } from '@shared/types'
 import { APP_TITLE, assetPath } from './constants'
 import { t } from '@shared/i18n'
 
@@ -57,20 +57,12 @@ export class AppTray {
       },
       {
         label: t(lang, 'language'),
-        submenu: [
-          {
-            label: 'Türkçe',
-            type: 'radio',
-            checked: lang === 'tr',
-            click: () => this.deps.applyPatch({ language: 'tr', languageDetected: true })
-          },
-          {
-            label: 'English',
-            type: 'radio',
-            checked: lang === 'en',
-            click: () => this.deps.applyPatch({ language: 'en', languageDetected: true })
-          }
-        ]
+        submenu: LANGUAGES.map((code) => ({
+          label: LANGUAGE_NAMES[code],
+          type: 'radio' as const,
+          checked: lang === code,
+          click: () => this.deps.applyPatch({ language: code, languageDetected: true })
+        }))
       },
       {
         label: t(lang, 'autostart'),

@@ -18,6 +18,7 @@ import { LocalAuth, RiotNotRunning } from '../riot/localAuth'
 import { detectLocale, detectPlayer, detectRegionShard } from '../riot/region'
 import { DiscordRPC } from './discordRpc'
 import { MatchStats, type MatchTarget } from './matchStats'
+import { OwnHistory } from './ownHistory'
 import { buildDisplay, buildPresence, canInvite, type PartyInvite } from './presence'
 import {
   idleState,
@@ -77,6 +78,7 @@ export class Poller extends EventEmitter {
   readonly content: Content
   readonly discord: DiscordRPC
   readonly match: MatchStats
+  readonly history: OwnHistory
 
   private stopped = true
   private state: GameState
@@ -111,7 +113,8 @@ export class Poller extends EventEmitter {
     const s = this.getSettings()
     this.content = new Content(s.language)
     this.discord = new DiscordRPC(DISCORD_CLIENT_ID)
-    this.match = new MatchStats(this.content)
+    this.history = new OwnHistory()
+    this.match = new MatchStats(this.content, this.history)
     this.match.on('report', (report) => this.emit('match', report))
     this.state = idleState()
     this.discord.on('disconnected', () => {
@@ -278,6 +281,7 @@ export class Poller extends EventEmitter {
 
     const now = Date.now()
     const loopChanged = state.sessionState !== this.lastLoop
+    if (this.lastLoop === 'ingame' && state.sessionState === 'menus') this.history.requestSync()
     this.lastLoop = state.sessionState
     const nearMatch =
       state.sessionState === 'ingame' || state.sessionState === 'pregame' || !!state.mapPath
@@ -313,6 +317,9 @@ export class Poller extends EventEmitter {
 
     if (inRange(state) && state.partyId) await this.syncRangeParty(api, state, now)
     else this.rangeParty = null
+
+    this.history.setPlayer(this.auth?.puuid ?? '')
+    if (settings.overlayEnabled && state.sessionState !== 'ingame') this.history.sync(api)
 
     this.match.sync(api, this.matchTarget(state, settings), {
       puuid: this.auth?.puuid ?? '',

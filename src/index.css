@@ -63,6 +63,31 @@
   --color-line-2: #8a8478;
 }
 
+:root:lang(ja) {
+  --font-sans: 'Barlow', 'Yu Gothic UI', 'Meiryo UI', 'Segoe UI', sans-serif;
+  --font-display: 'Barlow Condensed', 'Yu Gothic UI', 'Meiryo UI', 'Segoe UI', sans-serif;
+}
+
+:root:lang(zh) {
+  --font-sans: 'Barlow', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --font-display:
+    'Barlow Condensed', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+}
+
+:root:lang(ar) {
+  --font-sans: 'Barlow', 'Segoe UI', Tahoma, sans-serif;
+  --font-display: 'Barlow Condensed', 'Segoe UI', Tahoma, sans-serif;
+}
+
+:root:lang(ja) *,
+:root:lang(zh) * {
+  letter-spacing: 0.02em !important;
+}
+
+:root:lang(ar) * {
+  letter-spacing: 0 !important;
+}
+
 :root.a11y-bold body {
   font-weight: 500;
 }

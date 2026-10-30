@@ -9,6 +9,7 @@ import { loadSettings, setAutostart, updateSettings } from './settings'
 import { Poller, type Notice } from './core/poller'
 import { AppTray } from './tray'
 import { Overlay } from './overlay'
+import { GameWatcher, type GameFocus } from './gameWindow'
 import { applySize, resolveSize, themeBackground, windowInfo } from './windowSize'
 import {
   checkForUpdates,
@@ -25,6 +26,12 @@ let tray: AppTray | null = null
 let overlay: Overlay | null = null
 let isQuitting = false
 let trayHideNotified = false
+let valorantRunning = false
+let fallbackFocus: boolean | null = null
+
+const game = new GameWatcher()
+game.on('change', (focus: GameFocus) => overlay?.setGame(focus))
+game.on('unavailable', () => syncGame())
 
 process.on('uncaughtException', (e) => console.error('[uncaught]', e))
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e))
@@ -55,7 +62,9 @@ function applyPatch(patch: Partial<Settings>): Settings {
   }
   if (next.overlayEnabled !== prev.overlayEnabled || next.overlayHotkey !== prev.overlayHotkey) {
     overlay?.setHotkey(next.overlayHotkey, next.overlayEnabled)
+    syncGame()
   }
+  if (next.hudEnabled !== prev.hudEnabled) syncHud(poller.match.getReport())
   if (next.windowSize !== prev.windowSize && mainWindow && !mainWindow.isDestroyed()) {
     applySize(mainWindow, next.windowSize)
   }
@@ -73,9 +82,34 @@ const poller = new Poller(() => loadSettings(), applyPatch)
 poller.on('snapshot', (snap: Snapshot) => {
   broadcast(IPC.stateChanged, snap)
   tray?.update(snap.connection.valorant, statusText(snap))
+  if (snap.connection.valorant !== valorantRunning) {
+    valorantRunning = snap.connection.valorant
+    syncGame()
+  }
 })
 
-poller.on('match', (report: MatchReport | null) => broadcast(IPC.matchChanged, report))
+poller.on('match', (report: MatchReport | null) => {
+  broadcast(IPC.matchChanged, report)
+  syncHud(report)
+})
+
+function syncGame(): void {
+  if (!overlay) return
+  const wanted = loadSettings().overlayEnabled && valorantRunning
+  if (game.available) {
+    fallbackFocus = null
+    if (wanted) game.start()
+    else game.stop()
+    return
+  }
+  if (fallbackFocus === wanted) return
+  fallbackFocus = wanted
+  overlay.setGame({ focused: wanted, physical: null })
+}
+
+function syncHud(report: MatchReport | null): void {
+  overlay?.setHud(loadSettings().hudEnabled && report?.phase === 'pregame')
+}
 
 poller.on('notice', (notice: Notice) => {
   const lang = loadSettings().language
@@ -200,8 +234,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.matchGet, () => poller.match.getReport())
-  ipcMain.on(IPC.overlayToggle, () => overlay?.toggle())
-  ipcMain.handle(IPC.overlayGetVisible, () => overlay?.isVisible() ?? false)
+  ipcMain.handle(IPC.overlayGetView, () => overlay?.getView() ?? { tracker: false, hud: false })
   ipcMain.on(IPC.hotkeyPause, (_e, paused: unknown) => overlay?.pause(paused === true))
   ipcMain.handle(IPC.hotkeyStatus, () => overlay?.hotkeyOk() ?? true)
   ipcMain.handle(IPC.windowInfo, () => windowInfo(mainWindow))
@@ -267,6 +300,7 @@ function bootstrap(): void {
     const settings = loadSettings()
     overlay = new Overlay(loadRenderer)
     overlay.setHotkey(settings.overlayHotkey, settings.overlayEnabled)
+    syncGame()
     maybeAutoCheck(settings.autoCheckUpdates)
     setAutostart(settings.autostart)
     if (settings.startMinimized) {
@@ -289,6 +323,7 @@ function bootstrap(): void {
   app.on('before-quit', () => {
     isQuitting = true
     void poller.stop()
+    game.stop()
     overlay?.destroy()
     globalShortcut.unregisterAll()
     tray?.destroy()

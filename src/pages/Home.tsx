@@ -40,7 +40,7 @@ export function Home(): JSX.Element {
                     onClick={() => void patch({ streamerMode: !streamer })}
                     aria-pressed={streamer}
                     aria-label={t('streamer_mode')}
-                    className={`mr-1 flex h-6 w-6 items-center justify-center border transition-colors ${
+                    className={`me-1 flex h-6 w-6 items-center justify-center border transition-colors ${
                       streamer
                         ? 'border-accent bg-accent/15 text-accent'
                         : 'border-line-2 text-dim hover:border-dim hover:text-muted'

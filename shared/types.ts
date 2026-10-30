@@ -2,7 +2,21 @@ import { DEFAULT_TEMPLATES, type PresenceTemplates } from './templates'
 
 export type PageKey = 'home' | 'match' | 'settings' | 'about'
 
-export type Language = 'tr' | 'en'
+export const LANGUAGES = ['tr', 'en', 'es', 'fr', 'ja', 'zh', 'ar'] as const
+
+export type Language = (typeof LANGUAGES)[number]
+
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  tr: 'Türkçe',
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  ja: '日本語',
+  zh: '简体中文',
+  ar: 'العربية'
+}
+
+export const RTL_LANGUAGES: readonly Language[] = ['ar']
 
 export type SessionState = 'idle' | 'menus' | 'pregame' | 'ingame'
 
@@ -101,6 +115,7 @@ export interface Settings {
 
   overlayEnabled: boolean
   overlayHotkey: string
+  hudEnabled: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -140,7 +155,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autolockEnabled: false,
   autolockAgent: '',
   overlayEnabled: false,
-  overlayHotkey: 'Ctrl+T'
+  overlayHotkey: 'Ctrl+T',
+  hudEnabled: true
 }
 
 export interface PlayerStats {
@@ -182,13 +198,35 @@ export interface MatchTeam {
   avgRank: { name: string; icon: string | null } | null
 }
 
+export interface MapAgentStat {
+  uuid: string
+  name: string
+  icon: string | null
+  games: number
+  wins: number
+}
+
+export interface MapStats {
+  state: 'syncing' | 'ready'
+  sample: number
+  agents: MapAgentStat[]
+}
+
 export interface MatchReport {
   matchId: string
   phase: 'pregame' | 'ingame'
   mapName: string
   mapSplash: string | null
+  mapIcon: string | null
   modeName: string
+  modeIcon: string | null
   teams: MatchTeam[]
+  mapStats: MapStats | null
+}
+
+export interface OverlayView {
+  tracker: boolean
+  hud: boolean
 }
 
 export interface BuiltPresence {

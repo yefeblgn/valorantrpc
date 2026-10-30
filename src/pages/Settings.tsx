@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { Check, Lock } from 'lucide-react'
 import {
   DEFAULT_SETTINGS,
+  LANGUAGES,
+  LANGUAGE_NAMES,
   type AgentOption,
   type LargeImageMode,
   type LargeTextMode,
@@ -19,7 +21,7 @@ import {
   WINDOW_SIZES
 } from '@shared/types'
 import { useStore } from '../store'
-import { useT } from '../lib/i18n'
+import { useDir, useT } from '../lib/i18n'
 import { PageHeader } from '../components/Card'
 import { Field } from '../components/ui/Field'
 import { Switch } from '../components/ui/Switch'
@@ -65,12 +67,13 @@ type Tab = (typeof TABS)[number]
 
 export function Settings(): JSX.Element {
   const t = useT()
+  const dir = useDir()
   const [tab, setTab] = useState<Tab>('general')
 
   return (
     <div className="p-6">
       <PageHeader title={t('nav_settings')} desc={t('settings_desc')} />
-      <RTabs.Root value={tab} onValueChange={(v) => setTab(v as Tab)}>
+      <RTabs.Root value={tab} onValueChange={(v) => setTab(v as Tab)} dir={dir}>
         <RTabs.List className="mb-5 flex flex-wrap gap-x-6 border-b border-line">
           {TABS.map((tb) => (
             <RTabs.Trigger
@@ -80,7 +83,7 @@ export function Settings(): JSX.Element {
             >
               {t(`tab_${tb}`)}
               <span
-                className={`absolute inset-x-0 -bottom-px h-[2px] origin-left bg-accent transition-transform duration-200 ease-out ${
+                className={`absolute inset-x-0 -bottom-px h-[2px] origin-left bg-accent rtl:origin-right transition-transform duration-200 ease-out ${
                   tab === tb ? 'scale-x-100' : 'scale-x-0'
                 }`}
               />
@@ -137,13 +140,11 @@ function GeneralTab(): JSX.Element {
           <Switch checked={settings.rpcEnabled} onChange={(v) => patch({ rpcEnabled: v })} />
         </Field>
         <Field label={t('language')} desc={t('language_desc')}>
-          <Segmented<Language>
+          <Select
             value={settings.language}
-            options={[
-              { value: 'tr', label: 'TR' },
-              { value: 'en', label: 'EN' }
-            ]}
-            onChange={(v) => patch({ language: v, languageDetected: true })}
+            minWidth={150}
+            options={LANGUAGES.map((code) => ({ value: code, label: LANGUAGE_NAMES[code] }))}
+            onChange={(v) => patch({ language: v as Language, languageDetected: true })}
           />
         </Field>
         <Field label={t('poll_interval')} desc={t('poll_interval_desc')}>
@@ -153,7 +154,7 @@ function GeneralTab(): JSX.Element {
               onChange={setLocalInterval}
               onCommit={(v) => patch({ pollInterval: v })}
             />
-            <span className="display w-8 text-right text-[15px] text-muted">{localInterval}s</span>
+            <span className="display w-8 text-end text-[15px] text-muted">{localInterval}s</span>
           </div>
         </Field>
         <Field label={t('notify_detect')} desc={t('notify_detect_desc')}>
@@ -353,7 +354,7 @@ function AutolockTab(): JSX.Element {
             {selected ? (
               <>
                 <img src={selected.icon} className="h-8 w-8 border border-line-2" alt="" />
-                <div className="text-right">
+                <div className="text-end">
                   <div className="display text-[18px]">{selected.name}</div>
                   <div className="text-[11.5px] text-dim">{selected.role}</div>
                 </div>
@@ -405,7 +406,7 @@ function AgentTile({
     <Tip label={agent.name} desc={agent.role || undefined} side="top">
       <button
         onClick={onPick}
-        className={`group relative flex flex-col overflow-hidden border text-left transition-colors ${
+        className={`group relative flex flex-col overflow-hidden border text-start transition-colors ${
           selected ? 'border-accent' : 'border-line hover:border-line-2'
         }`}
       >
@@ -424,12 +425,12 @@ function AgentTile({
             alt=""
           />
           {selected && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center bg-accent text-white">
+            <span className="absolute end-1 top-1 flex h-4 w-4 items-center justify-center bg-accent text-white">
               <Lock size={10} />
             </span>
           )}
           {agent.isNew && (
-            <span className="display absolute left-0 top-0 bg-accent px-1.5 py-[3px] text-[10.5px] tracking-[0.12em] text-white">
+            <span className="display absolute start-0 top-0 bg-accent px-1.5 py-[3px] text-[10.5px] tracking-[0.12em] text-white">
               {newLabel}
             </span>
           )}
@@ -483,19 +484,13 @@ function OverlayTab(): JSX.Element {
             onChange={(v) => patch({ overlayHotkey: v })}
           />
         </Field>
-        <Field label={t('overlay_test')} desc={t('overlay_test_desc')}>
-          <button
-            onClick={() => window.api.toggleOverlay()}
-            disabled={!settings.overlayEnabled}
-            className="btn btn-ghost"
-          >
-            {t('overlay_show')}
-          </button>
+        <Field label={t('hud_enabled')} desc={t('hud_enabled_desc')}>
+          <Switch checked={settings.hudEnabled} onChange={(v) => patch({ hudEnabled: v })} />
         </Field>
       </Group>
       <RiskNote />
       <p className="text-[12.5px] leading-snug text-dim">
-        {t('overlay_borderless')} {t('overlay_privacy')}
+        {t('overlay_focus_note')} {t('overlay_display_note')} {t('overlay_privacy')}
       </p>
     </div>
   )

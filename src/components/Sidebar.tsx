@@ -49,7 +49,7 @@ export function Sidebar({
       initial={false}
       animate={{ width: collapsed ? SIDEBAR_CLOSED : SIDEBAR_OPEN }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className="flex shrink-0 flex-col justify-between overflow-clip border-r border-line bg-surface py-3"
+      className="flex shrink-0 flex-col justify-between overflow-clip border-e border-line bg-surface py-3"
     >
       <div className="flex flex-col gap-0.5">
         {NAV.map(({ key, labelKey, icon: Icon }) => {
@@ -58,12 +58,12 @@ export function Sidebar({
             <Tip key={key} label={t(labelKey)} disabled={!collapsed}>
               <button
                 onClick={() => onChange(key)}
-                className={`group relative flex h-11 items-center gap-3.5 whitespace-nowrap pl-[23px] transition-colors ${
+                className={`group relative flex h-11 items-center gap-3.5 whitespace-nowrap ps-[23px] transition-colors ${
                   active ? 'text-text' : 'text-dim hover:text-muted'
                 }`}
               >
                 <span
-                  className={`absolute inset-0 border-l-[3px] border-accent bg-gradient-to-r from-accent/15 to-transparent transition-opacity duration-200 ${
+                  className={`absolute inset-0 border-s-[3px] border-accent bg-gradient-to-r from-accent/15 rtl:bg-gradient-to-l to-transparent transition-opacity duration-200 ${
                     active ? 'opacity-100' : 'opacity-0'
                   }`}
                 />
@@ -84,9 +84,9 @@ export function Sidebar({
           <button
             onClick={onToggle}
             aria-label={toggleLabel}
-            className="flex h-9 items-center gap-3.5 whitespace-nowrap pl-[23px] text-dim transition-colors hover:text-muted"
+            className="flex h-9 items-center gap-3.5 whitespace-nowrap ps-[23px] text-dim transition-colors hover:text-muted"
           >
-            <ToggleIcon size={18} className="shrink-0" />
+            <ToggleIcon size={18} className="shrink-0 rtl:-scale-x-100" />
             <span className={`label text-inherit ${fade(collapsed)}`}>{toggleLabel}</span>
           </button>
         </Tip>
@@ -109,9 +109,9 @@ function ConnectionFooter({ collapsed }: { collapsed: boolean }): JSX.Element {
           desc={`@${discordUser.username}`}
           disabled={!collapsed}
         >
-          <div className="flex items-center gap-3 whitespace-nowrap pl-4">
+          <div className="flex items-center gap-3 whitespace-nowrap ps-4">
             <DiscordAvatar url={discordAvatarUrl(discordUser)} />
-            <div className={`min-w-0 pr-3 ${fade(collapsed)}`}>
+            <div className={`min-w-0 pe-3 ${fade(collapsed)}`}>
               <div className="truncate text-[13px] font-semibold text-text">
                 {discordUser.globalName || discordUser.username}
               </div>
@@ -178,7 +178,7 @@ function StatusRow({
   const stateText = connected ? t('connected') : t('disconnected')
   return (
     <Tip label={label} desc={stateText} disabled={!collapsed}>
-      <div className="flex items-center gap-3 whitespace-nowrap pl-5 pr-3 text-[12px]">
+      <div className="flex items-center gap-3 whitespace-nowrap ps-5 pe-3 text-[12px]">
         <span
           className="relative flex h-6 w-6 shrink-0 items-center justify-center"
           style={{
@@ -190,13 +190,13 @@ function StatusRow({
         >
           {icon}
           <span
-            className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rotate-45"
+            className="absolute -bottom-0.5 -end-0.5 h-1.5 w-1.5 rotate-45"
             style={{ background: connected ? 'var(--color-good)' : 'var(--color-dim)' }}
           />
         </span>
         <span className={`text-muted ${fade(collapsed)}`}>{label}</span>
         <span
-          className={`display ml-auto text-[11.5px] tracking-[0.12em] ${fade(collapsed)}`}
+          className={`display ms-auto text-[11.5px] tracking-[0.12em] ${fade(collapsed)}`}
           style={{ color: connected ? 'var(--color-good)' : 'var(--color-dim)' }}
         >
           {stateText}

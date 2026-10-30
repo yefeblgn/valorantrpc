@@ -44,7 +44,7 @@ export function TemplateEditor(): JSX.Element {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-hover"
+        className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-hover"
       >
         <Braces size={16} className="shrink-0 text-dim" />
         <span className="display text-[15px] tracking-[0.08em]">{t('templates_title')}</span>
@@ -56,7 +56,7 @@ export function TemplateEditor(): JSX.Element {
         )}
         <ChevronDown
           size={16}
-          className={`ml-auto shrink-0 text-dim transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`ms-auto shrink-0 text-dim transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 

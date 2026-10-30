@@ -1,5 +1,5 @@
 import { readFile } from 'fs/promises'
-import type { Language } from '@shared/types'
+import { LANGUAGES, type Language } from '@shared/types'
 import { valorantLogPath } from '../constants'
 import type { LocalAuth } from './localAuth'
 
@@ -48,7 +48,8 @@ export async function detectLocale(auth: LocalAuth): Promise<Language> {
     const r = await auth.localGet('/riotclient/region-locale')
     if (r.status === 200) {
       const locale = String(r.data.locale || '').toLowerCase()
-      if (locale.startsWith('tr')) return 'tr'
+      const lang = locale.split(/[-_]/)[0] as Language
+      if (LANGUAGES.includes(lang)) return lang
     }
   } catch (e) {
     console.debug('[region] locale failed:', e)

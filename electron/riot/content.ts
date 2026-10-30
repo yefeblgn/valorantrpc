@@ -46,28 +46,204 @@ const MODE_MEDIA: Record<string, { icon: string; art: string }> = {
 const TEAM_HEALTH_MODES = new Set(['abilitydraftarena'])
 
 const MODE_NAME: Record<string, Record<Language, string>> = {
-  competitive: { tr: 'Rekabetçi', en: 'Competitive' },
-  unrated: { tr: 'Derecesiz', en: 'Unrated' },
-  swiftplay: { tr: 'Tam Gaz', en: 'Swiftplay' },
-  spikerush: { tr: 'Spike Hücum', en: 'Spike Rush' },
-  deathmatch: { tr: 'Ölüm Maçı', en: 'Deathmatch' },
-  ggteam: { tr: 'Tırmanış', en: 'Escalation' },
-  hurm: { tr: 'Takım Ölüm Maçı', en: 'Team Deathmatch' },
-  onefa: { tr: 'Kopyalama', en: 'Replication' },
-  snowball: { tr: 'Kartopu Savaşı', en: 'Snowball Fight' },
-  premier: { tr: 'Premier', en: 'Premier' },
-  custom: { tr: 'Özel Oyun', en: 'Custom Game' },
-  newmap: { tr: 'Yeni Harita', en: 'New Map' },
-  knockout: { tr: 'Nakavt', en: 'Knockout' },
-  ar1s: { tr: 'Tek Bölge Rasgele', en: 'All Random One Site' },
-  mixtape: { tr: 'Miks', en: 'Miks' },
-  skirmish: { tr: 'Çarpışma', en: 'Skirmish' },
-  ascension: { tr: 'Çarpışma: Yükseliş', en: 'Skirmish: Ascension' },
-  retake: { tr: 'Akın', en: 'Retake' },
-  fortcollins: { tr: 'Akın', en: 'Retake' },
-  summit: { tr: 'Summit', en: 'Summit' },
-  abilitydraftarena: { tr: 'Galeyan: Güç Bozulması', en: 'Gauntlet: Glitched' },
-  '': { tr: 'Lobide', en: 'In Lobby' }
+  competitive: {
+    tr: 'Rekabetçi',
+    en: 'Competitive',
+    es: 'Competitivo',
+    fr: 'Compétition',
+    ja: 'コンペティティブ',
+    zh: '竞技模式',
+    ar: 'تنافسي'
+  },
+  unrated: {
+    tr: 'Derecesiz',
+    en: 'Unrated',
+    es: 'Normal',
+    fr: 'Non classé',
+    ja: 'アンレート',
+    zh: '常规模式',
+    ar: 'غير مصنّف'
+  },
+  swiftplay: {
+    tr: 'Tam Gaz',
+    en: 'Swiftplay',
+    es: 'Partida rápida',
+    fr: 'Partie rapide',
+    ja: 'スイフトプレイ',
+    zh: '极速模式',
+    ar: 'اللعب السريع'
+  },
+  spikerush: {
+    tr: 'Spike Hücum',
+    en: 'Spike Rush',
+    es: 'Fiebre de la Spike',
+    fr: 'Spike Rush',
+    ja: 'スパイクラッシュ',
+    zh: '超速冲点',
+    ar: 'اندفاع السبايك'
+  },
+  deathmatch: {
+    tr: 'Ölüm Maçı',
+    en: 'Deathmatch',
+    es: 'Combate a muerte',
+    fr: 'Combat à mort',
+    ja: 'デスマッチ',
+    zh: '死斗模式',
+    ar: 'قتال حتى الموت'
+  },
+  ggteam: {
+    tr: 'Tırmanış',
+    en: 'Escalation',
+    es: 'Escalada',
+    fr: 'Escalade',
+    ja: 'エスカレーション',
+    zh: '升级模式',
+    ar: 'التصعيد'
+  },
+  hurm: {
+    tr: 'Takım Ölüm Maçı',
+    en: 'Team Deathmatch',
+    es: 'Combate a muerte por equipos',
+    fr: 'Combat à mort par équipe',
+    ja: 'チームデスマッチ',
+    zh: '团队死斗',
+    ar: 'قتال الفرق حتى الموت'
+  },
+  onefa: {
+    tr: 'Kopyalama',
+    en: 'Replication',
+    es: 'Replicación',
+    fr: 'Réplication',
+    ja: 'レプリケーション',
+    zh: '复制模式',
+    ar: 'التكرار'
+  },
+  snowball: {
+    tr: 'Kartopu Savaşı',
+    en: 'Snowball Fight',
+    es: 'Guerra de bolas de nieve',
+    fr: 'Bataille de boules de neige',
+    ja: '雪合戦',
+    zh: '雪球大战',
+    ar: 'معركة كرات الثلج'
+  },
+  premier: {
+    tr: 'Premier',
+    en: 'Premier',
+    es: 'Premier',
+    fr: 'Premier',
+    ja: 'プレミア',
+    zh: 'Premier',
+    ar: 'بريمير'
+  },
+  custom: {
+    tr: 'Özel Oyun',
+    en: 'Custom Game',
+    es: 'Partida personalizada',
+    fr: 'Partie personnalisée',
+    ja: 'カスタムゲーム',
+    zh: '自定义游戏',
+    ar: 'مباراة مخصّصة'
+  },
+  newmap: {
+    tr: 'Yeni Harita',
+    en: 'New Map',
+    es: 'Mapa nuevo',
+    fr: 'Nouvelle carte',
+    ja: '新マップ',
+    zh: '新地图',
+    ar: 'خريطة جديدة'
+  },
+  knockout: {
+    tr: 'Nakavt',
+    en: 'Knockout',
+    es: 'Eliminatoria',
+    fr: 'Élimination',
+    ja: 'ノックアウト',
+    zh: '淘汰赛',
+    ar: 'خروج المغلوب'
+  },
+  ar1s: {
+    tr: 'Tek Bölge Rasgele',
+    en: 'All Random One Site',
+    es: 'Todo aleatorio, una zona',
+    fr: 'Tout aléatoire, un site',
+    ja: 'オールランダム・ワンサイト',
+    zh: '全随机单点',
+    ar: 'عشوائي بالكامل، موقع واحد'
+  },
+  mixtape: {
+    tr: 'Miks',
+    en: 'Miks',
+    es: 'Miks',
+    fr: 'Miks',
+    ja: 'ミックス',
+    zh: 'Miks',
+    ar: 'ميكس'
+  },
+  skirmish: {
+    tr: 'Çarpışma',
+    en: 'Skirmish',
+    es: 'Escaramuza',
+    fr: 'Escarmouche',
+    ja: 'スカーミッシュ',
+    zh: '遭遇战',
+    ar: 'مناوشة'
+  },
+  ascension: {
+    tr: 'Çarpışma: Yükseliş',
+    en: 'Skirmish: Ascension',
+    es: 'Escaramuza: Ascensión',
+    fr: 'Escarmouche : Ascension',
+    ja: 'スカーミッシュ：アセンション',
+    zh: '遭遇战：晋升',
+    ar: 'مناوشة: الصعود'
+  },
+  retake: {
+    tr: 'Akın',
+    en: 'Retake',
+    es: 'Retoma',
+    fr: 'Reprise',
+    ja: 'リテイク',
+    zh: '回防',
+    ar: 'الاستعادة'
+  },
+  fortcollins: {
+    tr: 'Akın',
+    en: 'Retake',
+    es: 'Retoma',
+    fr: 'Reprise',
+    ja: 'リテイク',
+    zh: '回防',
+    ar: 'الاستعادة'
+  },
+  summit: {
+    tr: 'Summit',
+    en: 'Summit',
+    es: 'Summit',
+    fr: 'Summit',
+    ja: 'サミット',
+    zh: 'Summit',
+    ar: 'القمة'
+  },
+  abilitydraftarena: {
+    tr: 'Galeyan: Güç Bozulması',
+    en: 'Gauntlet: Glitched',
+    es: 'Desafío: Glitch',
+    fr: 'Défi : Glitch',
+    ja: 'ガントレット：グリッチ',
+    zh: '挑战：故障',
+    ar: 'التحدي: الخلل'
+  },
+  '': {
+    tr: 'Lobide',
+    en: 'In Lobby',
+    es: 'En el lobby',
+    fr: 'Dans le salon',
+    ja: 'ロビー',
+    zh: '大厅中',
+    ar: 'في الردهة'
+  }
 }
 
 interface AgentEntry {
@@ -361,6 +537,12 @@ export class Content {
     if (!entry) return ['', null]
     const splash = entry.uuid ? `${MEDIA}/maps/${entry.uuid}/splash.png` : null
     return [entry.name ?? '', splash]
+  }
+
+  mapIcon(mapPath: string | null | undefined): string | null {
+    if (!mapPath) return null
+    const uuid = (this.maps ?? {})[mapPath.toLowerCase()]?.uuid
+    return uuid ? `${MEDIA}/maps/${uuid}/listviewicon.png` : null
   }
 
   tierName(tier: number | null | undefined): string {

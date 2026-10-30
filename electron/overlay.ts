@@ -1,84 +1,177 @@
 import { join } from 'path'
-import { BrowserWindow, globalShortcut, screen } from 'electron'
+import { BrowserWindow, globalShortcut, screen, type Rectangle } from 'electron'
+import type { OverlayView } from '@shared/types'
 import { IPC } from '@shared/ipc'
+import type { GameFocus } from './gameWindow'
 
-const FADE_MS = 200
+const FADE_MS = 160
+
+function sameRect(a: Rectangle | null, b: Rectangle | null): boolean {
+  return a?.x === b?.x && a?.y === b?.y && a?.width === b?.width && a?.height === b?.height
+}
 
 export class Overlay {
   private win: BrowserWindow | null = null
-  private visible = false
+  private ready = false
+  private shown = false
   private hideTimer: ReturnType<typeof setTimeout> | null = null
   private accelerator = ''
+  private enabled = false
   private registered = false
+  private hotkeyValid = true
   private paused = false
+  private tracker = false
+  private hudWanted = false
+  private game: GameFocus = { focused: false, physical: null }
+  private view: OverlayView = { tracker: false, hud: false }
+  private bounds: Rectangle | null = null
+  private readonly onDisplays = (): void => this.fit()
 
-  constructor(private readonly load: (win: BrowserWindow, view: string) => void) {}
+  constructor(private readonly load: (win: BrowserWindow, view: string) => void) {
+    screen.on('display-metrics-changed', this.onDisplays)
+    screen.on('display-added', this.onDisplays)
+    screen.on('display-removed', this.onDisplays)
+  }
 
-  isVisible(): boolean {
-    return this.visible
+  getView(): OverlayView {
+    return this.view
   }
 
   toggle(): void {
-    if (this.visible) this.hide()
-    else this.show()
+    if (!this.enabled || !this.game.focused) return
+    this.tracker = !this.tracker
+    this.render()
   }
 
-  show(): void {
-    const win = this.ensure()
-    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-    if (this.hideTimer) clearTimeout(this.hideTimer)
-    this.visible = true
-    win.setBounds(display.bounds)
-    win.setAlwaysOnTop(true, 'screen-saver')
-    win.showInactive()
-    win.webContents.send(IPC.overlayVisible, true)
+  setGame(game: GameFocus): void {
+    this.game = game
+    if (!game.focused) this.tracker = false
+    if (game.focused && this.enabled) this.ensure()
+    this.syncHotkey()
+    this.render()
   }
 
-  hide(): void {
-    const win = this.win
-    if (!this.visible || !win || win.isDestroyed()) return
-    this.visible = false
-    win.webContents.send(IPC.overlayVisible, false)
-    this.hideTimer = setTimeout(() => {
-      if (!this.visible && !win.isDestroyed()) win.hide()
-    }, FADE_MS)
+  setHud(wanted: boolean): void {
+    this.hudWanted = wanted
+    this.render()
   }
 
-  setHotkey(accelerator: string, enabled: boolean): boolean {
+  setHotkey(accelerator: string, enabled: boolean): void {
     this.unregister()
-    this.accelerator = enabled ? accelerator : ''
-    if (!enabled) this.hide()
-    return this.register()
+    this.accelerator = accelerator
+    this.enabled = enabled
+    if (!enabled) this.tracker = false
+    this.hotkeyValid = this.validate()
+    this.syncHotkey()
+    this.render()
   }
 
   pause(paused: boolean): void {
     this.paused = paused
-    if (paused) this.unregister()
-    else this.register()
+    this.syncHotkey()
   }
 
   hotkeyOk(): boolean {
-    return !this.accelerator || this.paused || this.registered
+    return !this.enabled || this.hotkeyValid
   }
 
   destroy(): void {
     this.unregister()
+    screen.off('display-metrics-changed', this.onDisplays)
+    screen.off('display-added', this.onDisplays)
+    screen.off('display-removed', this.onDisplays)
     if (this.hideTimer) clearTimeout(this.hideTimer)
     if (this.win && !this.win.isDestroyed()) this.win.destroy()
     this.win = null
-    this.visible = false
+    this.ready = false
+    this.shown = false
+    this.view = { tracker: false, hud: false }
   }
 
-  private register(): boolean {
-    if (!this.accelerator || this.paused) return true
-    if (this.registered) return true
+  private render(): void {
+    const active = this.enabled && this.game.focused
+    const next: OverlayView = {
+      tracker: active && this.tracker,
+      hud: active && this.hudWanted && !this.tracker
+    }
+    const changed = next.tracker !== this.view.tracker || next.hud !== this.view.hud
+    this.view = next
+    if (next.tracker || next.hud) this.reveal()
+    else this.conceal()
+    if (changed && this.win && !this.win.isDestroyed()) {
+      this.win.webContents.send(IPC.overlayView, next)
+    }
+  }
+
+  private reveal(): void {
+    const win = this.ensure()
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer)
+      this.hideTimer = null
+    }
+    if (!this.ready) return
+    this.fit()
+    if (this.shown) return
+    this.shown = true
+    win.showInactive()
+    win.setAlwaysOnTop(true, 'screen-saver')
+    win.moveTop()
+  }
+
+  private conceal(): void {
+    if (!this.shown || this.hideTimer) return
+    this.hideTimer = setTimeout(() => {
+      this.hideTimer = null
+      const win = this.win
+      if (this.view.tracker || this.view.hud || !win || win.isDestroyed()) return
+      win.hide()
+      this.shown = false
+    }, FADE_MS)
+  }
+
+  private targetBounds(): Rectangle {
+    if (this.game.physical && process.platform === 'win32') {
+      return screen.screenToDipRect(null, this.game.physical)
+    }
+    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).bounds
+  }
+
+  private fit(): void {
+    const win = this.win
+    if (!win || win.isDestroyed() || !this.ready) return
+    const bounds = this.targetBounds()
+    if (sameRect(bounds, this.bounds)) return
+    this.bounds = bounds
+    win.setBounds(bounds)
+  }
+
+  private validate(): boolean {
+    if (!this.enabled || !this.accelerator) return true
+    try {
+      const ok = globalShortcut.register(this.accelerator, () => this.toggle())
+      if (ok) globalShortcut.unregister(this.accelerator)
+      return ok
+    } catch (e) {
+      console.warn('[overlay] hotkey rejected:', e)
+      return false
+    }
+  }
+
+  private syncHotkey(): void {
+    const want =
+      this.enabled && !!this.accelerator && this.hotkeyValid && !this.paused && this.game.focused
+    if (want) this.register()
+    else this.unregister()
+  }
+
+  private register(): void {
+    if (this.registered) return
     try {
       this.registered = globalShortcut.register(this.accelerator, () => this.toggle())
     } catch (e) {
       console.warn('[overlay] hotkey rejected:', e)
       this.registered = false
     }
-    return this.registered
   }
 
   private unregister(): void {
@@ -97,6 +190,7 @@ export class Overlay {
     const win = new BrowserWindow({
       show: false,
       frame: false,
+      thickFrame: false,
       transparent: true,
       resizable: false,
       movable: false,
@@ -119,8 +213,23 @@ export class Overlay {
     win.setIgnoreMouseEvents(true)
     win.setAlwaysOnTop(true, 'screen-saver')
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    win.once('ready-to-show', () => {
+      this.ready = true
+      this.bounds = null
+      this.render()
+    })
+    win.on('closed', () => {
+      if (this.win !== win) return
+      this.win = null
+      this.ready = false
+      this.shown = false
+      this.bounds = null
+    })
     this.load(win, 'overlay')
     this.win = win
+    this.ready = false
+    this.shown = false
+    this.bounds = null
     return win
   }
 }

@@ -1,4 +1,5 @@
 import * as RSlider from '@radix-ui/react-slider'
+import { useDir } from '../../lib/i18n'
 
 export function Slider({
   value,
@@ -15,8 +16,10 @@ export function Slider({
   max?: number
   step?: number
 }): JSX.Element {
+  const dir = useDir()
   return (
     <RSlider.Root
+      dir={dir}
       className="relative flex h-5 w-[150px] touch-none select-none items-center"
       value={[value]}
       min={min}

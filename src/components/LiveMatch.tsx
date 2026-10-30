@@ -89,9 +89,9 @@ export function LiveMatch({ snap }: { snap: Snapshot }): JSX.Element {
   return (
     <div className="panel relative overflow-hidden">
       {status.active && display.mapSplash && (
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-3/4">
+        <div className="pointer-events-none absolute inset-y-0 end-0 w-3/4">
           <FadeImg src={display.mapSplash} className="h-full w-full object-cover opacity-25" />
-          <div className="absolute inset-0 bg-gradient-to-r from-panel via-panel/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-panel via-panel/60 to-transparent rtl:bg-gradient-to-l" />
         </div>
       )}
       <div className="relative p-5">
@@ -104,7 +104,7 @@ export function LiveMatch({ snap }: { snap: Snapshot }): JSX.Element {
             <span className="display truncate text-[26px] tracking-[0.04em]">{status.label}</span>
           </div>
           {startTs && (
-            <div className="shrink-0 text-right">
+            <div className="shrink-0 text-end">
               <div className="label">{t('session')}</div>
               <div className="display mt-1 text-[18px] tabular-nums text-muted">
                 {elapsed(startTs)}

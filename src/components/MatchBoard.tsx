@@ -34,7 +34,7 @@ function TeamTable({ team }: { team: MatchTeam }): JSX.Element {
         </span>
         <span className="label">{team.players.length}</span>
         {team.avgRank && (
-          <span className="ml-auto flex items-center gap-2">
+          <span className="ms-auto flex items-center gap-2">
             <span className="label">{t('avg_rank')}</span>
             {team.avgRank.icon && <FadeImg src={team.avgRank.icon} className="h-6 w-6" />}
             <span className="display text-[14px]">{team.avgRank.name}</span>

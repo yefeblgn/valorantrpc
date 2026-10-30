@@ -1,5 +1,8 @@
 import * as RTooltip from '@radix-ui/react-tooltip'
 import type { ReactNode } from 'react'
+import { useDir } from '../../lib/i18n'
+
+const MIRRORED = { left: 'right', right: 'left', top: 'top', bottom: 'bottom' } as const
 
 export function TipProvider({ children }: { children: ReactNode }): JSX.Element {
   return (
@@ -24,12 +27,18 @@ export function Tip({
   disabled?: boolean
   children: ReactNode
 }): JSX.Element {
+  const dir = useDir()
   if (disabled) return <>{children}</>
   return (
     <RTooltip.Root>
       <RTooltip.Trigger asChild>{children}</RTooltip.Trigger>
       <RTooltip.Portal>
-        <RTooltip.Content side={side} sideOffset={10} collisionPadding={10} className="tip">
+        <RTooltip.Content
+          side={dir === 'rtl' ? MIRRORED[side] : side}
+          sideOffset={10}
+          collisionPadding={10}
+          className="tip"
+        >
           <div className="flex items-center gap-2.5">
             <span className="display text-[13px] tracking-[0.1em] text-text">{label}</span>
             {hint && (
